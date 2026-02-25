@@ -88,17 +88,19 @@ Both providers implement the same `LLMClient` interface. LLMTool.inputSchema **m
 
 ### Agent Tools (`src/lib/agent/tools.ts`)
 
-9 tools available during chat via the agentic loop:
+11 tools available during chat via the agentic loop:
 
 | Tool | Purpose |
 |------|---------|
 | `remember` | Write a memory note |
 | `list_memory` | Query memory notes |
+| `update_memory` | Update/correct an existing memory note (supersede pattern) |
 | `update_soul` | Update agent identity (soul note) |
 | `web_search` | Search the web (Brave → DuckDuckGo fallback) |
 | `fetch_url` | Fetch a URL (SSRF-protected) |
 | `run_bash` | Execute a shell command (stdout/stderr/exitCode) |
 | `list_skills` | List available skills |
+| `create_skill` | Create a new skill (name, goal, triggerType, tools) |
 | `create_job` | Create and run a skill job |
 | `create_schedule` | Create a cron schedule |
 

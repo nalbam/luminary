@@ -87,7 +87,7 @@ export function getNoteById(id: string): MemoryNote | null {
 
 export function getNotes(filter: GetNotesFilter = {}): MemoryNote[] {
   const db = getDb();
-  const conditions: string[] = ['(expires_at IS NULL OR expires_at > datetime("now"))'];
+  const conditions: string[] = ["(expires_at IS NULL OR expires_at > datetime('now'))"];
   const params: unknown[] = [];
 
   if (filter.userId) {
@@ -120,7 +120,7 @@ export function getNotes(filter: GetNotesFilter = {}): MemoryNote[] {
 
 export function pruneExpired(): number {
   const db = getDb();
-  const result = db.prepare('DELETE FROM memory_notes WHERE expires_at IS NOT NULL AND expires_at <= datetime("now")').run();
+  const result = db.prepare("DELETE FROM memory_notes WHERE expires_at IS NOT NULL AND expires_at <= datetime('now')").run();
   return result.changes;
 }
 

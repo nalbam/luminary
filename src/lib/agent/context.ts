@@ -8,7 +8,8 @@ import { getNotes } from '../memory/notes';
  * Called by runAgentLoop() in src/lib/agent/loop.ts (Task 13).
  */
 export function buildAgentContext(userId: string): string {
-  const soulNotes = getNotes({ userId, kind: 'soul', limit: 5 });
+  const soulNotes = getNotes({ userId, kind: 'soul', limit: 5 })
+    .filter(n => !n.supersededBy);
   const ruleNotes = getNotes({ userId, kind: 'rule', limit: 10 })
     .filter(n => n.sensitivity !== 'sensitive' && !n.supersededBy);
   const summaryNotes = getNotes({ userId, kind: 'summary', limit: 5 })

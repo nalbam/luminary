@@ -80,24 +80,27 @@ agentTools.push({
   },
   async execute(input, ctx) {
     const db = getDb();
-    // Mark existing soul notes as superseded
-    const existing = db.prepare(
-      `SELECT id FROM memory_notes WHERE kind = 'soul' AND user_id = ?`
-    ).all(ctx.userId) as Array<{ id: string }>;
 
-    const newNote = writeNote({
-      kind: 'soul',
-      content: input.content as string,
-      userId: ctx.userId,
-      stability: 'permanent',
+    const updateSoul = db.transaction(() => {
+      const existing = db.prepare(
+        `SELECT id FROM memory_notes WHERE kind = 'soul' AND user_id = ?`
+      ).all(ctx.userId) as Array<{ id: string }>;
+
+      const newNote = writeNote({
+        kind: 'soul',
+        content: input.content as string,
+        userId: ctx.userId,
+        stability: 'permanent',
+      });
+
+      const stmt = db.prepare(`UPDATE memory_notes SET superseded_by = ? WHERE id = ?`);
+      for (const old of existing) {
+        stmt.run(newNote.id, old.id);
+      }
+      return newNote;
     });
 
-    // Mark old notes as superseded
-    const stmt = db.prepare(`UPDATE memory_notes SET superseded_by = ? WHERE id = ?`);
-    for (const old of existing) {
-      stmt.run(newNote.id, old.id);
-    }
-
+    const newNote = updateSoul();
     return { noteId: newNote.id, success: true, message: 'Soul updated' };
   },
 });

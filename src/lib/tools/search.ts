@@ -19,6 +19,8 @@ export async function doSearch(query: string): Promise<Array<{ title: string; ur
           url: r.url,
           snippet: r.description,
         }));
+      } else {
+        console.warn(`Brave Search API returned ${res.status} — falling back to DuckDuckGo`);
       }
     } catch {
       // Fall through to DuckDuckGo

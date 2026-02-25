@@ -37,19 +37,24 @@ export function saveAssistantToolCalls(userId: string, toolCalls: LLMToolCall[])
 }
 
 export function saveToolResults(userId: string, results: LLMToolResult[]): void {
+  if (results.length === 0) return;
   const db = getDb();
   const stmt = db.prepare(
     `INSERT INTO conversations (id, user_id, role, content, tool_use_id, created_at) VALUES (?, ?, 'tool_results', ?, ?, ?)`
   );
-  for (const r of results) {
-    stmt.run(uuidv4(), userId, r.content, r.toolUseId, new Date().toISOString());
-  }
+  const insertAll = db.transaction((items: LLMToolResult[]) => {
+    const now = new Date().toISOString();
+    for (const r of items) {
+      stmt.run(uuidv4(), userId, r.content, r.toolUseId, now);
+    }
+  });
+  insertAll(results);
 }
 
 export function getConversationHistory(userId: string): ConversationMessage[] {
   const db = getDb();
   const rows = db.prepare(
-    `SELECT * FROM conversations WHERE user_id = ? ORDER BY created_at ASC`
+    `SELECT id, user_id, role, content, tool_use_id, created_at FROM conversations WHERE user_id = ? ORDER BY created_at ASC`
   ).all(userId) as ConversationRow[];
 
   return rowsToMessages(rows);
@@ -83,7 +88,12 @@ function rowsToMessages(rows: ConversationRow[]): ConversationMessage[] {
       const results: LLMToolResult[] = [];
       while (i + 1 < rows.length && rows[i + 1].role === 'tool_results') {
         i++;
-        results.push({ toolUseId: rows[i].tool_use_id || '', content: rows[i].content });
+        const toolUseId = rows[i].tool_use_id;
+        if (!toolUseId) {
+          console.warn('tool_results row missing tool_use_id, skipping:', rows[i].id);
+          continue;
+        }
+        results.push({ toolUseId, content: rows[i].content });
       }
       if (results.length > 0) {
         messages.push({ role: 'tool_results', results });

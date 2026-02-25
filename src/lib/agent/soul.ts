@@ -14,6 +14,11 @@ When a user wants a recurring task, call create_schedule.
 When you need to run a skill, call create_job.
 Be concise, direct, and proactive. Prefer action over explanation.`;
 
+/**
+ * Ensures the agent's soul (identity and behavior principles) is initialized in the DB.
+ * Idempotent — safe to call on every request.
+ * Called by src/lib/loops/interactive.ts (Task 14) on each interactive session.
+ */
 export function ensureSoulExists(userId = 'user_default'): void {
   const db = getDb();
   const existing = db.prepare(

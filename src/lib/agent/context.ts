@@ -1,6 +1,12 @@
 // src/lib/agent/context.ts
 import { getNotes } from '../memory/notes';
 
+/**
+ * Builds the system prompt for the agentic loop.
+ * Loads soul notes first (identity/principles), then rule notes (learned rules),
+ * then recent summary notes (context).
+ * Called by runAgentLoop() in src/lib/agent/loop.ts (Task 13).
+ */
 export function buildAgentContext(userId: string): string {
   const soulNotes = getNotes({ userId, kind: 'soul', limit: 5 });
   const ruleNotes = getNotes({ userId, kind: 'rule', limit: 10 })

@@ -17,6 +17,7 @@ export function getDb(): Database.Database {
 
   // Try to load sqlite-vec
   try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const sqliteVec = require('sqlite-vec');
     sqliteVec.load(db);
     console.log('sqlite-vec loaded successfully');

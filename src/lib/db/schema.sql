@@ -65,6 +65,9 @@ CREATE TABLE IF NOT EXISTS step_runs (
   artifact_path TEXT
 );
 
+-- NOTE: If upgrading from a previous version, delete data/vibemon.db to apply CHECK constraint changes.
+-- Run: rm -f data/vibemon.db data/vibemon.db-wal data/vibemon.db-shm
+
 -- memory_notes table
 CREATE TABLE IF NOT EXISTS memory_notes (
   id TEXT PRIMARY KEY,
@@ -94,3 +97,6 @@ CREATE TABLE IF NOT EXISTS conversations (
   tool_use_id TEXT,
   created_at  TEXT DEFAULT (datetime('now'))
 );
+
+CREATE INDEX IF NOT EXISTS idx_conversations_user_id ON conversations(user_id);
+CREATE INDEX IF NOT EXISTS idx_conversations_created_at ON conversations(created_at);

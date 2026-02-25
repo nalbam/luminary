@@ -115,6 +115,8 @@ export function getDb(): Database.Database {
         tool_use_id TEXT,
         created_at  TEXT DEFAULT (datetime('now'))
       );
+      CREATE INDEX IF NOT EXISTS idx_conversations_user_id ON conversations(user_id);
+      CREATE INDEX IF NOT EXISTS idx_conversations_created_at ON conversations(created_at);
     `);
   }
 

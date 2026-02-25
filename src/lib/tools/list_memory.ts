@@ -1,5 +1,5 @@
 import { registerTool } from './registry';
-import { getNotes } from '../memory/notes';
+import { getNotes, NoteKind } from '../memory/notes';
 
 registerTool({
   name: 'list_memory',
@@ -7,7 +7,7 @@ registerTool({
   inputSchema: {
     type: 'object',
     properties: {
-      kind: { type: 'string', enum: ['log', 'summary', 'rule'] },
+      kind: { type: 'string', enum: ['log', 'summary', 'rule', 'soul'] },
       tags: { type: 'array', items: { type: 'string' } },
       limit: { type: 'number' },
     },
@@ -16,7 +16,7 @@ registerTool({
     try {
       const notes = getNotes({
         userId: context.userId,
-        kind: input.kind as 'log' | 'summary' | 'rule' | undefined,
+        kind: input.kind as NoteKind | undefined,
         tags: input.tags as string[] | undefined,
         limit: (input.limit as number) || 20,
       });

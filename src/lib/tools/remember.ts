@@ -1,5 +1,5 @@
 import { registerTool } from './registry';
-import { writeNote } from '../memory/notes';
+import { writeNote, NoteKind } from '../memory/notes';
 
 registerTool({
   name: 'remember',
@@ -8,7 +8,7 @@ registerTool({
     type: 'object',
     properties: {
       content: { type: 'string', description: 'Content to remember' },
-      kind: { type: 'string', enum: ['log', 'summary', 'rule'], description: 'Type of note' },
+      kind: { type: 'string', enum: ['log', 'summary', 'rule', 'soul'], description: 'Type of note' },
       tags: { type: 'array', items: { type: 'string' }, description: 'Tags for the note' },
     },
     required: ['content'],
@@ -16,7 +16,7 @@ registerTool({
   async run(input, context) {
     try {
       const note = writeNote({
-        kind: (input.kind as 'log' | 'summary' | 'rule') || 'log',
+        kind: (input.kind as NoteKind) || 'log',
         content: input.content as string,
         userId: context.userId,
         tags: (input.tags as string[]) || [],

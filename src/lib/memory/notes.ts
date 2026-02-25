@@ -1,9 +1,11 @@
 import { getDb } from '../db';
 import { v4 as uuidv4 } from 'uuid';
 
+export type NoteKind = 'log' | 'summary' | 'rule' | 'soul';
+
 export interface MemoryNote {
   id: string;
-  kind: 'log' | 'summary' | 'rule' | 'soul';
+  kind: NoteKind;
   content: string;
   scope: string;
   userId?: string;
@@ -21,7 +23,7 @@ export interface MemoryNote {
 }
 
 interface WriteNoteInput {
-  kind: 'log' | 'summary' | 'rule' | 'soul';
+  kind: NoteKind;
   content: string;
   scope?: string;
   userId?: string;
@@ -36,7 +38,7 @@ interface WriteNoteInput {
 
 interface GetNotesFilter {
   userId?: string;
-  kind?: 'log' | 'summary' | 'rule' | 'soul';
+  kind?: NoteKind;
   scope?: string;
   tags?: string[];
   limit?: number;
@@ -149,16 +151,16 @@ export function mergeNotes(ids: string[]): MemoryNote | null {
 function rowToNote(row: Record<string, unknown>): MemoryNote {
   return {
     id: row.id as string,
-    kind: row.kind as 'log' | 'summary' | 'rule' | 'soul',
+    kind: row.kind as NoteKind,
     content: row.content as string,
     scope: (row.scope as string) || 'user',
     userId: row.user_id as string | undefined,
     tags: JSON.parse((row.tags as string) || '[]'),
     confidence: (row.confidence as number) ?? 1.0,
-    stability: (row.stability as 'volatile' | 'stable' | 'permanent') || 'stable',
+    stability: (row.stability as MemoryNote['stability']) || 'stable',
     ttlDays: row.ttl_days as number | undefined,
     expiresAt: row.expires_at as string | undefined,
-    sensitivity: (row.sensitivity as 'normal' | 'sensitive') || 'normal',
+    sensitivity: (row.sensitivity as MemoryNote['sensitivity']) || 'normal',
     evidence: JSON.parse((row.evidence as string) || '[]'),
     jobId: row.job_id as string | undefined,
     supersededBy: row.superseded_by as string | undefined,

@@ -3,7 +3,7 @@ import { v4 as uuidv4 } from 'uuid';
 
 export interface MemoryNote {
   id: string;
-  kind: 'log' | 'summary' | 'rule';
+  kind: 'log' | 'summary' | 'rule' | 'soul';
   content: string;
   scope: string;
   userId?: string;
@@ -21,7 +21,7 @@ export interface MemoryNote {
 }
 
 interface WriteNoteInput {
-  kind: 'log' | 'summary' | 'rule';
+  kind: 'log' | 'summary' | 'rule' | 'soul';
   content: string;
   scope?: string;
   userId?: string;
@@ -36,7 +36,7 @@ interface WriteNoteInput {
 
 interface GetNotesFilter {
   userId?: string;
-  kind?: 'log' | 'summary' | 'rule';
+  kind?: 'log' | 'summary' | 'rule' | 'soul';
   scope?: string;
   tags?: string[];
   limit?: number;
@@ -149,7 +149,7 @@ export function mergeNotes(ids: string[]): MemoryNote | null {
 function rowToNote(row: Record<string, unknown>): MemoryNote {
   return {
     id: row.id as string,
-    kind: row.kind as 'log' | 'summary' | 'rule',
+    kind: row.kind as 'log' | 'summary' | 'rule' | 'soul',
     content: row.content as string,
     scope: (row.scope as string) || 'user',
     userId: row.user_id as string | undefined,

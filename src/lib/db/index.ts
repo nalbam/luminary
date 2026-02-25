@@ -91,7 +91,7 @@ export function getDb(): Database.Database {
       );
       CREATE TABLE IF NOT EXISTS memory_notes (
         id TEXT PRIMARY KEY,
-        kind TEXT NOT NULL CHECK (kind IN ('log','summary','rule')),
+        kind TEXT NOT NULL CHECK (kind IN ('log','summary','rule','soul')),
         content TEXT NOT NULL,
         scope TEXT DEFAULT 'user',
         user_id TEXT,
@@ -106,6 +106,14 @@ export function getDb(): Database.Database {
         superseded_by TEXT,
         created_at TEXT DEFAULT (datetime('now')),
         updated_at TEXT DEFAULT (datetime('now'))
+      );
+      CREATE TABLE IF NOT EXISTS conversations (
+        id          TEXT PRIMARY KEY,
+        user_id     TEXT NOT NULL,
+        role        TEXT NOT NULL CHECK (role IN ('user','assistant','assistant_tool_calls','tool_results')),
+        content     TEXT NOT NULL,
+        tool_use_id TEXT,
+        created_at  TEXT DEFAULT (datetime('now'))
       );
     `);
   }

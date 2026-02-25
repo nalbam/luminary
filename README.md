@@ -13,7 +13,7 @@ vibemon-agent moves beyond request-response chatbots to become an always-on syst
 - **Job Runner** – Async job execution with state machine (queued → running → succeeded/failed/canceled)
 - **Scheduler** – Cron-based skill triggering
 - **Memory System** – Three kinds of notes (log, summary, rule) with semantic recall via sqlite-vec
-- **Tool Registry** – Extensible tool system (summarize, remember, list_memory, web_search)
+- **Tool Registry** – Extensible tool system (summarize, remember, list_memory, web_search, bash)
 - **Maintenance Loop** – Periodic memory pruning, merging, and refreshing
 - **Event Store** – Append-only JSONL event logging for auditability
 
@@ -107,6 +107,7 @@ Tools are the only way the agent can perform real work:
 - `remember` – Write a memory note
 - `list_memory` – Retrieve memory notes
 - `web_search` – Web search (stub, extensible)
+- `bash` – Execute shell commands
 
 ## License
 

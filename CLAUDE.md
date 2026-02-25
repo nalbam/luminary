@@ -88,7 +88,7 @@ Both providers implement the same `LLMClient` interface. LLMTool.inputSchema **m
 
 ### Agent Tools (`src/lib/agent/tools.ts`)
 
-8 tools available during chat via the agentic loop:
+9 tools available during chat via the agentic loop:
 
 | Tool | Purpose |
 |------|---------|
@@ -97,6 +97,7 @@ Both providers implement the same `LLMClient` interface. LLMTool.inputSchema **m
 | `update_soul` | Update agent identity (soul note) |
 | `web_search` | Search the web (Brave → DuckDuckGo fallback) |
 | `fetch_url` | Fetch a URL (SSRF-protected) |
+| `run_bash` | Execute a shell command (stdout/stderr/exitCode) |
 | `list_skills` | List available skills |
 | `create_job` | Create and run a skill job |
 | `create_schedule` | Create a cron schedule |
@@ -105,7 +106,7 @@ Both providers implement the same `LLMClient` interface. LLMTool.inputSchema **m
 
 Tools implement the `Tool` interface (`registry.ts`): `name`, `description`, `inputSchema`, `run(input, context)`.
 
-Built-in tools (for job execution): `summarize`, `remember`, `list_memory`, `web_search`.
+Built-in tools (for job execution): `summarize`, `remember`, `list_memory`, `web_search`, `bash`.
 
 Register new tools by importing the tool file in `runner.ts` (self-registers via `registerTool()`).
 

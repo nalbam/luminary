@@ -183,6 +183,27 @@ agentTools.push({
   },
 });
 
+// ─── run_bash ────────────────────────────────────────────────────────────────
+agentTools.push({
+  definition: {
+    name: 'run_bash',
+    description: 'Execute a shell command and return stdout, stderr, and exit code. Use for file operations, running scripts, or any system-level task.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        command: { type: 'string', description: 'Shell command to execute' },
+        timeout: { type: 'number', description: 'Timeout in milliseconds (default 30000)' },
+      },
+      required: ['command'],
+    },
+  },
+  async execute(input) {
+    const { runBash } = await import('../tools/bash');
+    const result = await runBash(input.command as string, (input.timeout as number) || 30000);
+    return result;
+  },
+});
+
 // ─── create_schedule ──────────────────────────────────────────────────────────
 agentTools.push({
   definition: {

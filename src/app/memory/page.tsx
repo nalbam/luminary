@@ -15,6 +15,7 @@ interface Note {
 
 const kindFilters = [
   { value: '', label: 'All', icon: '🧠' },
+  { value: 'soul', label: 'Soul', icon: '✨' },
   { value: 'log', label: 'Log', icon: '📋' },
   { value: 'summary', label: 'Summary', icon: '📝' },
   { value: 'rule', label: 'Rule', icon: '⚡' },

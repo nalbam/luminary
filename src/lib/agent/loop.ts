@@ -39,7 +39,7 @@ export async function runAgentLoop(
   // 컨텍스트 + 도구
   const rawSystemPrompt = buildAgentContext(userId);
   const systemPrompt = rawSystemPrompt ||
-    'You are vibemon-agent, a proactive personal AI assistant. Be concise, direct, and helpful.';
+    'You are a proactive personal AI assistant. Be concise, direct, and helpful.';
   const tools = getAgentTools();
 
   // Agentic loop

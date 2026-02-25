@@ -42,6 +42,8 @@ interface GetNotesFilter {
   scope?: string;
   tags?: string[];
   limit?: number;
+  /** When true (default), exclude notes that have been superseded. */
+  activeOnly?: boolean;
 }
 
 export function writeNote(input: WriteNoteInput): MemoryNote {
@@ -91,6 +93,11 @@ export function getNotes(filter: GetNotesFilter = {}): MemoryNote[] {
   const db = getDb();
   const conditions: string[] = ["(expires_at IS NULL OR expires_at > datetime('now'))"];
   const params: unknown[] = [];
+
+  // Exclude superseded notes by default
+  if (filter.activeOnly !== false) {
+    conditions.push('superseded_by IS NULL');
+  }
 
   if (filter.userId) {
     conditions.push('user_id = ?');

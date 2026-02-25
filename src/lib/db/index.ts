@@ -124,5 +124,8 @@ export function getDb(): Database.Database {
   // Enable WAL mode for better performance
   db.pragma('journal_mode = WAL');
 
+  // Cleanup: remove superseded soul notes (legacy records from before in-place update)
+  db.exec(`DELETE FROM memory_notes WHERE kind = 'soul' AND superseded_by IS NOT NULL`);
+
   return db;
 }

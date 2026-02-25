@@ -113,9 +113,11 @@ Register new tools by importing the tool file in `runner.ts` (self-registers via
 
 - `src/lib/memory/notes.ts` — `NoteKind = 'log' | 'summary' | 'rule' | 'soul'`
 - `src/lib/memory/conversations.ts` — multi-turn conversation history (MAX_ROWS=80)
+- `src/lib/memory/users.ts` — `ensureUserExists()` initializes default user on first call; `getUser()`, `updateUser()`
 - `src/lib/agent/context.ts` — `buildAgentContext()` with soul→rule→summary priority
-- `src/lib/agent/soul.ts` — `ensureSoulExists()` initializes default soul on first call
+- `src/lib/agent/soul.ts` — `ensureSoulExists()` initializes default soul on first call (Think→Remember→Execute identity)
 - Soul notes: always filter by `!n.supersededBy` — old souls must not appear in system prompt
+- User init: `handleUserMessage()` calls `ensureUserExists(userId)` before `runAgentLoop()`
 
 ### Vector Embeddings (`src/lib/memory/embeddings.ts`)
 

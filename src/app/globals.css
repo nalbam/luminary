@@ -1,0 +1,137 @@
+@import "tailwindcss";
+
+:root {
+  --bg-base: #07070f;
+  --bg-surface: rgba(255, 255, 255, 0.035);
+  --bg-surface-hover: rgba(255, 255, 255, 0.06);
+  --border-subtle: rgba(255, 255, 255, 0.07);
+  --border-mid: rgba(255, 255, 255, 0.12);
+  --violet: #8b5cf6;
+  --violet-dim: #6d28d9;
+  --cyan: #22d3ee;
+  --text-primary: #f1f5f9;
+  --text-muted: #64748b;
+  --text-dim: #334155;
+}
+
+html,
+body {
+  background-color: var(--bg-base);
+  color: var(--text-primary);
+  font-family: "Inter", system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Subtle grid background */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(139, 92, 246, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(139, 92, 246, 0.03) 1px, transparent 1px);
+  background-size: 40px 40px;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Radial glow top-left */
+body::after {
+  content: "";
+  position: fixed;
+  top: -20%;
+  left: -10%;
+  width: 60vw;
+  height: 60vh;
+  background: radial-gradient(ellipse, rgba(109, 40, 217, 0.08) 0%, transparent 70%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+#__next,
+main {
+  position: relative;
+  z-index: 1;
+}
+
+/* Glass card */
+.glass {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.glass-hover {
+  transition: background 0.2s, border-color 0.2s;
+}
+.glass-hover:hover {
+  background: var(--bg-surface-hover);
+  border-color: var(--border-mid);
+}
+
+/* Gradient text */
+.gradient-text {
+  background: linear-gradient(135deg, #a78bfa 0%, #818cf8 50%, #38bdf8 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Glow button */
+.btn-primary {
+  background: linear-gradient(135deg, #7c3aed, #6d28d9);
+  box-shadow: 0 0 20px rgba(109, 40, 217, 0.35);
+  transition: box-shadow 0.2s, transform 0.1s;
+}
+.btn-primary:hover {
+  box-shadow: 0 0 28px rgba(109, 40, 217, 0.55);
+  transform: translateY(-1px);
+}
+.btn-primary:active {
+  transform: translateY(0);
+}
+
+/* Scrollbars */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #312e5a #0d0d18;
+}
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+::-webkit-scrollbar-track {
+  background: #0d0d18;
+}
+::-webkit-scrollbar-thumb {
+  background: #312e5a;
+  border-radius: 999px;
+}
+
+/* Animated pulse dot for "running" status */
+@keyframes status-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(1.4); }
+}
+.status-pulse {
+  animation: status-pulse 1.5s ease-in-out infinite;
+}
+
+/* Typing dots */
+@keyframes typing-bounce {
+  0%, 60%, 100% { transform: translateY(0); opacity: 0.5; }
+  30% { transform: translateY(-5px); opacity: 1; }
+}
+.typing-dot {
+  animation: typing-bounce 1.2s ease-in-out infinite;
+}
+.typing-dot:nth-child(2) { animation-delay: 0.2s; }
+.typing-dot:nth-child(3) { animation-delay: 0.4s; }
+
+/* Confidence bar */
+.confidence-bar {
+  height: 3px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #8b5cf6, #22d3ee);
+}

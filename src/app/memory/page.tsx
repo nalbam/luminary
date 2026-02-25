@@ -13,13 +13,22 @@ interface Note {
   createdAt: string;
 }
 
+const kindFilters = [
+  { value: '', label: 'All', icon: '🧠' },
+  { value: 'log', label: 'Log', icon: '📋' },
+  { value: 'summary', label: 'Summary', icon: '📝' },
+  { value: 'rule', label: 'Rule', icon: '⚡' },
+];
+
 export default function MemoryPage() {
   const [notes, setNotes] = useState<Note[]>([]);
   const [loading, setLoading] = useState(true);
   const [kindFilter, setKindFilter] = useState('');
   const [maintenanceRunning, setMaintenanceRunning] = useState(false);
+  const [maintenanceMsg, setMaintenanceMsg] = useState('');
 
   const fetchNotes = async () => {
+    setLoading(true);
     try {
       const url = kindFilter ? `/api/memory?kind=${kindFilter}` : '/api/memory';
       const res = await fetch(url);
@@ -36,55 +45,108 @@ export default function MemoryPage() {
 
   const runMaintenance = async () => {
     setMaintenanceRunning(true);
+    setMaintenanceMsg('');
     try {
       const res = await fetch('/api/maintenance', { method: 'POST' });
       const data = await res.json();
-      alert(data.message || 'Maintenance complete');
+      setMaintenanceMsg(data.message || 'Maintenance complete');
       fetchNotes();
     } catch (e) {
-      alert(`Error: ${String(e)}`);
+      setMaintenanceMsg(`Error: ${String(e)}`);
     } finally {
       setMaintenanceRunning(false);
     }
   };
 
   return (
-    <div className="p-6">
+    <div className="max-w-6xl mx-auto px-6 py-8">
+      {/* Header */}
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-white">Memory</h1>
-        <div className="flex gap-2">
-          <select
-            value={kindFilter}
-            onChange={e => setKindFilter(e.target.value)}
-            className="bg-gray-700 text-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+        <div>
+          <h1 className="text-xl font-bold" style={{ color: '#f1f5f9' }}>Memory</h1>
+          <p className="text-sm mt-0.5" style={{ color: '#64748b' }}>
+            {notes.length} note{notes.length !== 1 ? 's' : ''} · {kindFilter || 'all kinds'}
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={fetchNotes}
+            className="px-3 py-2 rounded-xl text-sm transition-all"
+            style={{ background: 'rgba(255,255,255,0.04)', color: '#64748b', border: '1px solid rgba(255,255,255,0.08)' }}
+            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.08)'; e.currentTarget.style.color = '#94a3b8'; }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; e.currentTarget.style.color = '#64748b'; }}
           >
-            <option value="">All kinds</option>
-            <option value="log">Log</option>
-            <option value="summary">Summary</option>
-            <option value="rule">Rule</option>
-          </select>
+            ↺ Refresh
+          </button>
           <button
             onClick={runMaintenance}
             disabled={maintenanceRunning}
-            className="bg-amber-700 hover:bg-amber-600 disabled:bg-gray-700 text-white px-3 py-2 rounded-lg text-sm font-medium"
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium transition-all"
+            style={{
+              background: maintenanceRunning ? 'rgba(245,158,11,0.08)' : 'rgba(245,158,11,0.12)',
+              color: '#fcd34d',
+              border: '1px solid rgba(245,158,11,0.25)',
+              opacity: maintenanceRunning ? 0.7 : 1,
+            }}
           >
-            {maintenanceRunning ? 'Running...' : 'Run Maintenance'}
-          </button>
-          <button
-            onClick={fetchNotes}
-            className="bg-gray-700 hover:bg-gray-600 text-gray-200 px-3 py-2 rounded-lg text-sm"
-          >
-            Refresh
+            {maintenanceRunning ? (
+              <>
+                <svg className="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                </svg>
+                Running…
+              </>
+            ) : '🔧 Maintenance'}
           </button>
         </div>
       </div>
 
+      {/* Maintenance result */}
+      {maintenanceMsg && (
+        <div
+          className="rounded-xl px-4 py-3 mb-5 text-sm flex items-center justify-between"
+          style={{ background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.2)', color: '#6ee7b7' }}
+        >
+          <span>✓ {maintenanceMsg}</span>
+          <button onClick={() => setMaintenanceMsg('')} className="text-xs ml-4 opacity-60 hover:opacity-100">✕</button>
+        </div>
+      )}
+
+      {/* Kind filter pills */}
+      <div className="flex gap-2 mb-6">
+        {kindFilters.map(f => (
+          <button
+            key={f.value}
+            onClick={() => setKindFilter(f.value)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium transition-all duration-150"
+            style={
+              kindFilter === f.value
+                ? { background: 'rgba(139,92,246,0.2)', color: '#c4b5fd', border: '1px solid rgba(139,92,246,0.4)' }
+                : { background: 'rgba(255,255,255,0.04)', color: '#64748b', border: '1px solid rgba(255,255,255,0.07)' }
+            }
+          >
+            <span>{f.icon}</span>
+            {f.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Notes */}
       {loading ? (
-        <p className="text-gray-400">Loading memory...</p>
+        <div className="flex items-center gap-2 py-16 justify-center" style={{ color: '#475569' }}>
+          <div className="w-1.5 h-1.5 rounded-full bg-violet-400 typing-dot" />
+          <div className="w-1.5 h-1.5 rounded-full bg-violet-400 typing-dot" />
+          <div className="w-1.5 h-1.5 rounded-full bg-violet-400 typing-dot" />
+        </div>
       ) : notes.length === 0 ? (
-        <div className="text-center py-16">
-          <p className="text-gray-400 text-lg">No memory notes yet</p>
-          <p className="text-gray-600 text-sm mt-2">Chat with the assistant to create memory notes</p>
+        <div
+          className="text-center py-20 rounded-2xl"
+          style={{ background: 'rgba(255,255,255,0.02)', border: '1px dashed rgba(255,255,255,0.08)' }}
+        >
+          <div className="text-4xl mb-3">🧠</div>
+          <p className="text-sm font-medium" style={{ color: '#94a3b8' }}>No memory notes yet</p>
+          <p className="text-xs mt-1" style={{ color: '#475569' }}>Chat with the assistant to create memory notes</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">

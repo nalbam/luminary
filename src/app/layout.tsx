@@ -3,7 +3,7 @@ import './globals.css';
 import Navigation from '@/components/Navigation';
 
 export const metadata: Metadata = {
-  title: 'vibemon-agent',
+  title: 'vibemon — agent runtime',
   description: 'A local-first proactive agent runtime',
 };
 
@@ -14,9 +14,9 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className="bg-gray-900 text-gray-100 min-h-screen font-sans">
+      <body className="min-h-screen flex flex-col">
         <Navigation />
-        <main className="max-w-6xl mx-auto">
+        <main className="flex-1 relative z-10">
           {children}
         </main>
       </body>

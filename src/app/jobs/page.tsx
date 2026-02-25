@@ -26,6 +26,14 @@ interface StepRun {
   completed_at?: string;
 }
 
+const statusConfig: Record<string, { color: string; bg: string }> = {
+  queued:    { color: '#fcd34d', bg: 'rgba(245,158,11,0.12)' },
+  running:   { color: '#93c5fd', bg: 'rgba(59,130,246,0.12)' },
+  succeeded: { color: '#6ee7b7', bg: 'rgba(16,185,129,0.12)' },
+  failed:    { color: '#fca5a5', bg: 'rgba(239,68,68,0.12)' },
+  canceled:  { color: '#94a3b8', bg: 'rgba(100,116,139,0.12)' },
+};
+
 export default function JobsPage() {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
@@ -33,6 +41,7 @@ export default function JobsPage() {
   const [statusFilter, setStatusFilter] = useState('');
 
   const fetchJobs = async () => {
+    setLoading(true);
     try {
       const url = statusFilter ? `/api/jobs?status=${statusFilter}` : '/api/jobs';
       const res = await fetch(url);
@@ -53,16 +62,29 @@ export default function JobsPage() {
     setSelectedJob(data);
   };
 
+  const selectStyle = {
+    background: 'rgba(255,255,255,0.04)',
+    border: '1px solid rgba(255,255,255,0.1)',
+    color: '#e2e8f0',
+    borderRadius: '10px',
+    padding: '7px 12px',
+    fontSize: '13px',
+    outline: 'none',
+    cursor: 'pointer',
+  } as const;
+
   return (
-    <div className="p-6">
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-white">Jobs</h1>
-        <div className="flex gap-2">
-          <select
-            value={statusFilter}
-            onChange={e => setStatusFilter(e.target.value)}
-            className="bg-gray-700 text-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
-          >
+    <div className="max-w-6xl mx-auto px-6 py-8">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-8">
+        <div>
+          <h1 className="text-xl font-bold" style={{ color: '#f1f5f9' }}>Jobs</h1>
+          <p className="text-sm mt-0.5" style={{ color: '#64748b' }}>
+            Track every task your agent runs
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} style={selectStyle}>
             <option value="">All statuses</option>
             <option value="queued">Queued</option>
             <option value="running">Running</option>
@@ -72,28 +94,41 @@ export default function JobsPage() {
           </select>
           <button
             onClick={fetchJobs}
-            className="bg-gray-700 hover:bg-gray-600 text-gray-200 px-3 py-2 rounded-lg text-sm"
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm transition-all"
+            style={{ background: 'rgba(255,255,255,0.04)', color: '#64748b', border: '1px solid rgba(255,255,255,0.08)' }}
+            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.08)'; e.currentTarget.style.color = '#94a3b8'; }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; e.currentTarget.style.color = '#64748b'; }}
           >
-            Refresh
+            ↺ Refresh
           </button>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div>
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+        {/* Job list */}
+        <div className="lg:col-span-2">
           {loading ? (
-            <p className="text-gray-400">Loading jobs...</p>
+            <div className="flex items-center gap-2 py-16 justify-center" style={{ color: '#475569' }}>
+              <div className="w-1.5 h-1.5 rounded-full bg-violet-400 typing-dot" />
+              <div className="w-1.5 h-1.5 rounded-full bg-violet-400 typing-dot" />
+              <div className="w-1.5 h-1.5 rounded-full bg-violet-400 typing-dot" />
+            </div>
           ) : jobs.length === 0 ? (
-            <div className="text-center py-16">
-              <p className="text-gray-400 text-lg">No jobs yet</p>
-              <p className="text-gray-600 text-sm mt-2">Run a skill or use the API to create jobs</p>
+            <div
+              className="text-center py-16 rounded-2xl"
+              style={{ background: 'rgba(255,255,255,0.02)', border: '1px dashed rgba(255,255,255,0.08)' }}
+            >
+              <div className="text-3xl mb-3">⚙</div>
+              <p className="text-sm" style={{ color: '#64748b' }}>No jobs yet</p>
+              <p className="text-xs mt-1" style={{ color: '#334155' }}>Run a skill to create jobs</p>
             </div>
           ) : (
-            <div className="space-y-3">
+            <div className="space-y-2">
               {jobs.map(job => (
                 <JobCard
                   key={job.id}
                   job={job}
+                  selected={selectedJob?.job.id === job.id}
                   onClick={() => handleJobClick(job)}
                 />
               ))}
@@ -101,63 +136,137 @@ export default function JobsPage() {
           )}
         </div>
 
-        {selectedJob && (
-          <div className="bg-gray-800 border border-gray-700 rounded-xl p-4">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-white font-semibold">Job Details</h2>
-              <button
-                onClick={() => setSelectedJob(null)}
-                className="text-gray-400 hover:text-white"
-              >
-                ✕
-              </button>
-            </div>
-            <div className="space-y-3">
-              <div>
-                <p className="text-xs text-gray-500">ID</p>
-                <p className="text-sm text-gray-200 font-mono">{selectedJob.job.id}</p>
-              </div>
-              <div>
-                <p className="text-xs text-gray-500">Status</p>
-                <p className="text-sm text-gray-200">{selectedJob.job.status}</p>
-              </div>
-              {selectedJob.job.result && (
+        {/* Detail panel */}
+        <div className="lg:col-span-3">
+          {selectedJob ? (
+            <div
+              className="rounded-2xl p-5"
+              style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', position: 'sticky', top: '80px' }}
+            >
+              {/* Detail header */}
+              <div className="flex items-center justify-between mb-5">
                 <div>
-                  <p className="text-xs text-gray-500">Result</p>
-                  <pre className="text-xs text-gray-300 bg-gray-900 rounded p-2 overflow-auto max-h-40">
+                  <p className="text-xs font-mono mb-1" style={{ color: '#475569' }}>{selectedJob.job.id}</p>
+                  <div className="flex items-center gap-2">
+                    {(() => {
+                      const cfg = statusConfig[selectedJob.job.status] || statusConfig.canceled;
+                      return (
+                        <span className="text-xs px-2.5 py-1 rounded-full font-medium" style={{ background: cfg.bg, color: cfg.color }}>
+                          {selectedJob.job.status}
+                        </span>
+                      );
+                    })()}
+                    <span className="text-xs" style={{ color: '#475569' }}>{selectedJob.job.trigger_type}</span>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setSelectedJob(null)}
+                  className="w-7 h-7 rounded-lg flex items-center justify-center text-sm transition-colors"
+                  style={{ background: 'rgba(255,255,255,0.04)', color: '#64748b' }}
+                  onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.1)'; e.currentTarget.style.color = '#e2e8f0'; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; e.currentTarget.style.color = '#64748b'; }}
+                >
+                  ✕
+                </button>
+              </div>
+
+              {/* Timestamps */}
+              <div className="grid grid-cols-3 gap-3 mb-5">
+                {[
+                  { label: 'Created', value: selectedJob.job.created_at },
+                  { label: 'Started', value: selectedJob.job.started_at },
+                  { label: 'Completed', value: selectedJob.job.completed_at },
+                ].map(({ label, value }) => (
+                  <div key={label} className="rounded-xl p-3" style={{ background: 'rgba(255,255,255,0.03)' }}>
+                    <p className="text-xs mb-1" style={{ color: '#475569' }}>{label}</p>
+                    <p className="text-xs font-mono" style={{ color: value ? '#94a3b8' : '#334155' }}>
+                      {value ? new Date(value).toLocaleTimeString() : '—'}
+                    </p>
+                  </div>
+                ))}
+              </div>
+
+              {/* Result */}
+              {selectedJob.job.result && (
+                <div className="mb-4">
+                  <p className="text-xs font-medium mb-2" style={{ color: '#94a3b8' }}>Result</p>
+                  <pre
+                    className="text-xs rounded-xl p-3 overflow-auto max-h-40"
+                    style={{ background: 'rgba(255,255,255,0.03)', color: '#94a3b8', border: '1px solid rgba(255,255,255,0.06)' }}
+                  >
                     {JSON.stringify(JSON.parse(selectedJob.job.result), null, 2)}
                   </pre>
                 </div>
               )}
+
+              {/* Error */}
               {selectedJob.job.error && (
-                <div>
-                  <p className="text-xs text-gray-500">Error</p>
-                  <p className="text-sm text-red-400">{selectedJob.job.error}</p>
+                <div className="mb-4 rounded-xl p-3" style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)' }}>
+                  <p className="text-xs font-medium mb-1" style={{ color: '#f87171' }}>Error</p>
+                  <p className="text-xs" style={{ color: '#fca5a5' }}>{selectedJob.job.error}</p>
                 </div>
               )}
+
+              {/* Step runs */}
               {selectedJob.steps.length > 0 && (
                 <div>
-                  <p className="text-xs text-gray-500 mb-2">Steps ({selectedJob.steps.length})</p>
-                  <div className="space-y-2">
-                    {selectedJob.steps.map(step => (
-                      <div key={step.id} className="bg-gray-900 rounded-lg p-2">
-                        <p className="text-sm text-purple-400 font-medium">{step.tool_name}</p>
-                        {step.output && (
-                          <pre className="text-xs text-gray-400 mt-1 overflow-auto max-h-20">
-                            {JSON.stringify(JSON.parse(step.output), null, 2)}
-                          </pre>
-                        )}
-                        {step.error && (
-                          <p className="text-xs text-red-400 mt-1">{step.error}</p>
-                        )}
-                      </div>
-                    ))}
+                  <p className="text-xs font-medium mb-3" style={{ color: '#94a3b8' }}>
+                    Steps · {selectedJob.steps.length}
+                  </p>
+                  <div className="relative pl-4">
+                    {/* Timeline line */}
+                    <div className="absolute left-1.5 top-0 bottom-0 w-px" style={{ background: 'rgba(255,255,255,0.06)' }} />
+                    <div className="space-y-3">
+                      {selectedJob.steps.map((step, idx) => (
+                        <div key={step.id} className="relative">
+                          {/* Dot */}
+                          <div
+                            className="absolute -left-3.5 top-3 w-2 h-2 rounded-full"
+                            style={{ background: step.error ? '#ef4444' : '#8b5cf6' }}
+                          />
+                          <div
+                            className="rounded-xl p-3"
+                            style={{ background: 'rgba(255,255,255,0.025)', border: '1px solid rgba(255,255,255,0.06)' }}
+                          >
+                            <div className="flex items-center justify-between mb-1">
+                              <span className="text-xs font-medium font-mono" style={{ color: '#a78bfa' }}>
+                                {idx + 1}. {step.tool_name}
+                              </span>
+                              {step.completed_at && (
+                                <span className="text-xs" style={{ color: '#334155' }}>
+                                  {new Date(step.completed_at).toLocaleTimeString()}
+                                </span>
+                              )}
+                            </div>
+                            {step.output && (
+                              <pre
+                                className="text-xs mt-1.5 overflow-auto max-h-20 rounded-lg p-2"
+                                style={{ background: 'rgba(0,0,0,0.25)', color: '#64748b' }}
+                              >
+                                {JSON.stringify(JSON.parse(step.output), null, 2)}
+                              </pre>
+                            )}
+                            {step.error && (
+                              <p className="text-xs mt-1" style={{ color: '#f87171' }}>⚠ {step.error}</p>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 </div>
               )}
             </div>
-          </div>
-        )}
+          ) : (
+            <div
+              className="rounded-2xl flex flex-col items-center justify-center py-20"
+              style={{ background: 'rgba(255,255,255,0.02)', border: '1px dashed rgba(255,255,255,0.06)' }}
+            >
+              <div className="text-3xl mb-3 opacity-30">⚙</div>
+              <p className="text-sm" style={{ color: '#334155' }}>Select a job to view details</p>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

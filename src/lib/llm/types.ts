@@ -3,7 +3,12 @@
 export interface LLMTool {
   name: string;
   description: string;
-  inputSchema: Record<string, unknown>; // JSON Schema object
+  inputSchema: {
+    type: 'object';
+    properties?: Record<string, unknown>;
+    required?: string[];
+    [key: string]: unknown;
+  };
 }
 
 export interface LLMToolCall {

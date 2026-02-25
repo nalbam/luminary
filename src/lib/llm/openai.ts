@@ -15,43 +15,60 @@ export class OpenAIClient implements LLMClient {
     tools: LLMTool[];
     maxTokens?: number;
   }): Promise<LLMResponse> {
-    const oaiMessages = toOpenAIMessages(params.messages);
-    const oaiTools = params.tools.map(t => ({
-      type: 'function' as const,
-      function: {
-        name: t.name,
-        description: t.description,
-        parameters: t.inputSchema,
-      },
-    }));
+    try {
+      const oaiMessages = toOpenAIMessages(params.messages);
+      const oaiTools = params.tools.map(t => ({
+        type: 'function' as const,
+        function: {
+          name: t.name,
+          description: t.description,
+          parameters: t.inputSchema,
+        },
+      }));
 
-    const response = await this.client.chat.completions.create({
-      model: process.env.OPENAI_MODEL || 'gpt-4o',
-      messages: [
-        { role: 'system', content: params.system },
-        ...oaiMessages,
-      ],
-      tools: oaiTools.length > 0 ? oaiTools : undefined,
-      max_tokens: params.maxTokens || 2000,
-    });
+      const response = await this.client.chat.completions.create({
+        model: process.env.OPENAI_MODEL || 'gpt-4o',
+        messages: [
+          { role: 'system', content: params.system },
+          ...oaiMessages,
+        ],
+        tools: oaiTools.length > 0 ? oaiTools : undefined,
+        max_tokens: params.maxTokens || 2000,
+      });
 
-    const choice = response.choices[0];
+      const choice = response.choices[0];
+      if (!choice?.message) {
+        throw new Error('OpenAI returned empty response: no choices available');
+      }
 
-    if (choice.message.tool_calls && choice.message.tool_calls.length > 0) {
-      const toolCalls: LLMToolCall[] = choice.message.tool_calls
-        .filter(tc => tc.type === 'function')
-        .map(tc => {
-          const fnCall = tc as OpenAI.ChatCompletionMessageFunctionToolCall;
-          return {
-            id: fnCall.id,
-            name: fnCall.function.name,
-            input: JSON.parse(fnCall.function.arguments) as Record<string, unknown>,
-          };
-        });
-      return { type: 'tool_calls', toolCalls };
+      if (choice.message.tool_calls && choice.message.tool_calls.length > 0) {
+        const toolCalls: LLMToolCall[] = choice.message.tool_calls
+          .filter(tc => tc.type === 'function')
+          .map(tc => {
+            const fnCall = tc as OpenAI.ChatCompletionMessageFunctionToolCall;
+            return {
+              id: fnCall.id,
+              name: fnCall.function.name,
+              input: safeParseArgs(fnCall.function.arguments),
+            };
+          });
+        return { type: 'tool_calls', toolCalls };
+      }
+
+      return { type: 'text', text: choice.message.content || '' };
+    } catch (error) {
+      if (error instanceof Error && error.message.startsWith('OpenAI')) throw error;
+      throw new Error(`OpenAI API call failed: ${error instanceof Error ? error.message : String(error)}`);
     }
+  }
+}
 
-    return { type: 'text', text: choice.message.content || '' };
+function safeParseArgs(raw: string): Record<string, unknown> {
+  try {
+    return JSON.parse(raw) as Record<string, unknown>;
+  } catch {
+    console.error('Failed to parse tool call arguments:', raw);
+    return { _raw: raw };
   }
 }
 

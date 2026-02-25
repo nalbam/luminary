@@ -22,33 +22,41 @@ export class AnthropicClient implements LLMClient {
     tools: LLMTool[];
     maxTokens?: number;
   }): Promise<LLMResponse> {
-    const anthropicMessages = toAnthropicMessages(params.messages);
-    const anthropicTools: Anthropic.Tool[] = params.tools.map(t => ({
-      name: t.name,
-      description: t.description,
-      input_schema: t.inputSchema as Anthropic.Tool.InputSchema,
-    }));
-
-    const response = await this.client.messages.create({
-      model: process.env.ANTHROPIC_MODEL || 'claude-opus-4-6',
-      system: params.system,
-      messages: anthropicMessages,
-      tools: anthropicTools.length > 0 ? anthropicTools : undefined,
-      max_tokens: params.maxTokens || 2000,
-    });
-
-    const toolUseBlocks = response.content.filter(b => b.type === 'tool_use');
-    if (toolUseBlocks.length > 0) {
-      const toolCalls: LLMToolCall[] = (toolUseBlocks as Anthropic.ToolUseBlock[]).map(b => ({
-        id: b.id,
-        name: b.name,
-        input: b.input as Record<string, unknown>,
+    try {
+      const anthropicMessages = toAnthropicMessages(params.messages);
+      const anthropicTools: Anthropic.Tool[] = params.tools.map(t => ({
+        name: t.name,
+        description: t.description,
+        input_schema: {
+          type: 'object' as const,
+          ...Object.fromEntries(Object.entries(t.inputSchema).filter(([k]) => k !== 'type')),
+        } as Anthropic.Tool['input_schema'],
       }));
-      return { type: 'tool_calls', toolCalls };
-    }
 
-    const textBlock = response.content.find(b => b.type === 'text') as Anthropic.TextBlock | undefined;
-    return { type: 'text', text: textBlock?.text || '' };
+      const response = await this.client.messages.create({
+        model: process.env.ANTHROPIC_MODEL || 'claude-opus-4-6',
+        system: params.system,
+        messages: anthropicMessages,
+        tools: anthropicTools.length > 0 ? anthropicTools : undefined,
+        max_tokens: params.maxTokens || 2000,
+      });
+
+      const toolUseBlocks = response.content.filter(b => b.type === 'tool_use');
+      if (toolUseBlocks.length > 0) {
+        const toolCalls: LLMToolCall[] = (toolUseBlocks as Anthropic.ToolUseBlock[]).map(b => ({
+          id: b.id,
+          name: b.name,
+          input: b.input as Record<string, unknown>,
+        }));
+        return { type: 'tool_calls', toolCalls };
+      }
+
+      const textBlock = response.content.find(b => b.type === 'text') as Anthropic.TextBlock | undefined;
+      return { type: 'text', text: textBlock?.text || '' };
+    } catch (error) {
+      if (error instanceof Error && error.message.startsWith('Anthropic')) throw error;
+      throw new Error(`Anthropic API call failed: ${error instanceof Error ? error.message : String(error)}`);
+    }
   }
 }
 
@@ -91,7 +99,8 @@ function toAnthropicMessages(messages: ConversationMessage[]): Anthropic.Message
         i++;
       }
     } else {
-      i++; // 고아 tool_results 건너뜀
+      console.warn('Orphan tool_results message found at index', i, '- skipping');
+      i++;
     }
   }
 

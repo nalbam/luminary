@@ -41,8 +41,18 @@ export async function runJob(jobId: string): Promise<void> {
   db.prepare('UPDATE jobs SET status = ?, started_at = ? WHERE id = ?')
     .run('running', new Date().toISOString(), jobId);
 
+  let input: Record<string, unknown>;
   try {
-    const input = JSON.parse((job.input as string) || '{}');
+    input = JSON.parse((job.input as string) || '{}');
+  } catch (parseErr) {
+    const errMsg = `Invalid job input JSON: ${String(parseErr)}`;
+    console.error(`Job ${jobId} parse error:`, parseErr);
+    db.prepare('UPDATE jobs SET status = ?, error = ?, completed_at = ? WHERE id = ?')
+      .run('failed', errMsg, new Date().toISOString(), jobId);
+    return;
+  }
+
+  try {
     const userId = (job.user_id as string) || 'user_default';
     let result: unknown;
 

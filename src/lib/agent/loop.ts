@@ -11,6 +11,7 @@ import {
   saveToolResults,
 } from '../memory/conversations';
 import { appendEvent } from '../events/store';
+import { writeNote } from '../memory/notes';
 import type { ConversationMessage } from '../llm/types';
 
 const MAX_ITERATIONS = 10;
@@ -64,6 +65,7 @@ export async function runAgentLoop(
 
   // Agentic loop
   let iterations = 0;
+  const executedTools: string[] = []; // Track tool calls for auto-summary
 
   while (iterations < MAX_ITERATIONS) {
     iterations++;
@@ -95,6 +97,20 @@ export async function runAgentLoop(
     if (response.type === 'text') {
       saveAssistantMessage(userId, response.text);
       appendEvent({ type: 'assistant_message', userId, payload: { message: response.text } });
+
+      // Auto-summary: if 2+ tools were executed, write a summary note automatically.
+      // This enforces the Remember philosophy without relying on LLM discretion.
+      if (executedTools.length >= 2) {
+        const toolSummary = executedTools.join(', ');
+        writeNote({
+          kind: 'summary',
+          content: `[Auto] Multi-step task completed (${executedTools.length} tools: ${toolSummary}).\nUser asked: "${message.slice(0, 120)}"\nResult: ${response.text.slice(0, 300)}`,
+          userId,
+          stability: 'volatile',
+          ttlDays: 7,
+        });
+      }
+
       return { response: response.text };
     }
 
@@ -109,6 +125,11 @@ export async function runAgentLoop(
           result = await executeAgentTool(call.name, call.input, { userId });
         } catch (e) {
           result = { error: String(e) };
+        }
+        // Track tools for auto-summary (exclude memory/soul tools to avoid redundancy)
+        const skipForSummary = new Set(['remember', 'update_memory', 'update_soul', 'list_memory']);
+        if (!skipForSummary.has(call.name)) {
+          executedTools.push(call.name);
         }
         toolResults.push({ toolUseId: call.id, content: JSON.stringify(result) });
       }

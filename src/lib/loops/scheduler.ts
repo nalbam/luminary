@@ -3,6 +3,18 @@ import { getDb } from '../db';
 import { enqueueJob, runJob } from '../jobs/runner';
 import cron from 'node-cron';
 
+/** Mark a job as failed in DB when runJob() throws unexpectedly. Prevents zombie jobs. */
+function handleJobError(jobId: string, e: unknown, context: string): void {
+  try {
+    const db = getDb();
+    db.prepare('UPDATE jobs SET status = ?, error = ?, completed_at = ? WHERE id = ?')
+      .run('failed', String(e), new Date().toISOString(), jobId);
+  } catch (dbErr) {
+    console.error(`Failed to update job ${jobId} status after error:`, dbErr);
+  }
+  console.error(`${context} [job=${jobId}]:`, e);
+}
+
 let schedulerStarted = false;
 
 interface RegisteredTask {
@@ -66,12 +78,12 @@ function syncSchedules(): void {
             // Store tool info directly on the job row
             jobDb.prepare('UPDATE jobs SET tool_name = ?, tool_input = ? WHERE id = ?')
               .run(schedule.tool_name, schedule.tool_input || '{}', jobId);
-            runJob(jobId).catch(e => console.error('Scheduled tool_call job error:', e));
+            runJob(jobId).catch(e => handleJobError(jobId, e, 'Scheduled tool_call job error'));
           } else if (schedule.routine_id) {
             // Routine-based: enqueue job linked to routine
             console.log(`Triggering scheduled routine: ${schedule.routine_id}`);
             const jobId = await enqueueJob(schedule.routine_id, 'schedule', {}, undefined);
-            runJob(jobId).catch(e => console.error('Scheduled routine job error:', e));
+            runJob(jobId).catch(e => handleJobError(jobId, e, 'Scheduled routine job error'));
           } else {
             console.warn(`Schedule ${schedule.id} has no routine_id and action_type is not 'tool_call' — skipping`);
           }

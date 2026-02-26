@@ -151,6 +151,9 @@ agentTools.push({
     });
 
     const newNote = updateSoul();
+    // Clear stale conversation history (older than 3 days) — consistent with ensureSoulExists().
+    const cutoff = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString();
+    db.prepare(`DELETE FROM conversations WHERE user_id = ? AND created_at < ?`).run(ctx.userId, cutoff);
     return { noteId: newNote.id, success: true, message: 'Soul updated' };
   },
 });

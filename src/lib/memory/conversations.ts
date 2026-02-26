@@ -109,10 +109,35 @@ function rowsToMessages(rows: ConversationRow[]): ConversationMessage[] {
 
 function trimHistory(userId: string): void {
   const db = getDb();
+
+  // Step 1: Naive row-count trim — keep the latest MAX_ROWS rows
   db.prepare(`
     DELETE FROM conversations
     WHERE user_id = ? AND id NOT IN (
       SELECT id FROM conversations WHERE user_id = ? ORDER BY created_at DESC LIMIT ?
     )
   `).run(userId, userId, MAX_ROWS);
+
+  // Step 2: Remove orphaned message pairs that could cause API errors.
+  // Anthropic requires every tool_use block to be followed by a tool_result block.
+  // The naive trim above may cut at a boundary, leaving orphaned pairs.
+  const rows = db.prepare(
+    `SELECT id, role FROM conversations WHERE user_id = ? ORDER BY created_at ASC`
+  ).all(userId) as Array<{ id: string; role: string }>;
+
+  const toDelete: string[] = [];
+  for (let i = 0; i < rows.length; i++) {
+    if (rows[i].role === 'assistant_tool_calls') {
+      const hasResult = i + 1 < rows.length && rows[i + 1].role === 'tool_results';
+      if (!hasResult) toDelete.push(rows[i].id);
+    } else if (rows[i].role === 'tool_results') {
+      const hasPreceding = i > 0 && rows[i - 1].role === 'assistant_tool_calls';
+      if (!hasPreceding) toDelete.push(rows[i].id);
+    }
+  }
+
+  if (toDelete.length > 0) {
+    const placeholders = toDelete.map(() => '?').join(',');
+    db.prepare(`DELETE FROM conversations WHERE id IN (${placeholders})`).run(...toDelete);
+  }
 }

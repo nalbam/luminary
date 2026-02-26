@@ -11,9 +11,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 1. **의도 분석** — 사용자가 진짜 원하는 게 무엇인가? - Thinking
 2. **계획 수립** — 어떤 도구를, 어떤 순서로, 근본 원인 분석 - Planning
 3. **정보 갭 확인** — 부족하면 질문, 충분하면 즉시 실행 - Notification
-5. **실행** — 설명하지 말고, 한다 - Execution
-6. **보고** — 결과를 사용자에게 명확히 전달 - Reporting
-7. **기억** — 과거 경험에서 배우고, 미래에 활용 - Memory
+4. **실행** — 설명하지 말고, 한다 - Execution
+5. **보고** — 결과를 사용자에게 명확히 전달 - Reporting
+6. **기억** — 과거 경험에서 배우고, 미래에 활용 - Memory
 
 ## Commands
 

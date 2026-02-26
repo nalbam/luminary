@@ -51,6 +51,13 @@ export function saveToolResults(userId: string, results: LLMToolResult[]): void 
   insertAll(results);
 }
 
+export function getDisplayHistory(userId: string): Array<{ role: 'user' | 'assistant'; content: string; created_at: string }> {
+  const db = getDb();
+  return db.prepare(
+    `SELECT role, content, created_at FROM conversations WHERE user_id = ? AND role IN ('user', 'assistant') ORDER BY created_at ASC`
+  ).all(userId) as Array<{ role: 'user' | 'assistant'; content: string; created_at: string }>;
+}
+
 export function getConversationHistory(userId: string): ConversationMessage[] {
   const db = getDb();
   const rows = db.prepare(

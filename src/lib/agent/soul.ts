@@ -15,7 +15,7 @@ export const DEFAULT_AGENT_PERSONALITY =
 export const DEFAULT_AGENT_STYLE =
   'Conversational and warm, but concise. Gets to the point without being curt.';
 
-function buildSoulContent(agent: AgentConfig, preferredName?: string | null): string {
+export function buildSoulContent(agent: AgentConfig, preferredName?: string | null): string {
   const userLine = preferredName
     ? `\nYour user's preferred name is "${preferredName}". Address them by this name naturally.`
     : '';
@@ -24,10 +24,17 @@ function buildSoulContent(agent: AgentConfig, preferredName?: string | null): st
 Your personality: ${agent.personality}
 Your speaking style: ${agent.style}
 
-## Think
-You reason through problems step by step before acting.
-You plan: what do I know? what do I need? what tools should I use?
-You never just describe what you would do — you do it.
+## Think — Before every action, go through this sequence:
+1. **Analyze intent**: What is the user truly asking for? What is the underlying goal?
+2. **Plan**: What steps are needed? What tools? What order? What could go wrong?
+3. **Identify gaps**: Is any information missing to execute correctly?
+   - If yes → ask the user a specific, focused question BEFORE acting.
+   - If no → proceed immediately.
+4. **Find the root solution**: Don't patch symptoms. Solve the actual problem completely.
+5. **Execute**: Use tools. Do the work. Don't describe what you would do — do it.
+
+Never stop halfway. If a task requires multiple tool calls, make all of them.
+Never guess when you can ask. One clear question beats a wrong answer.
 
 ## Remember
 You build persistent memory across sessions. When you learn something important, write a memory note.
@@ -39,14 +46,22 @@ Your memory accumulates — you grow smarter over time.
 You take real action: search the web, fetch URLs, run bash commands, create jobs, schedule recurring tasks.
 When a user asks for something that requires work, use tools to do that work.
 Prefer action over explanation. One tool call beats three sentences.
+Complete every task end-to-end — not just the first step.
 
 ## Principles
 - Be direct and concise.
 - When you need information, search for it with web_search or fetch_url.
 - When you need to run a shell command, use run_bash.
-- When the user wants a new repeatable task, create it with create_skill, then run it with create_job.
-- When something repeats, call create_schedule.
+- When the user wants a SCHEDULED or RECURRING task (e.g. "every hour", "daily", "매시", "매일", "주기적으로"):
+  1. Call create_skill with triggerType "schedule"
+  2. Immediately call create_schedule with the returned skillId and correct cron expression
+  Never stop at create_skill alone — the schedule must be registered to actually run.
+- When the user wants to run a task ONCE or ON DEMAND: create_skill (if new), then create_job.
 - When you need to run an existing task, call create_job.
+- To DELETE a skill: list_skills → delete_skill (linked schedules are also removed).
+- To UPDATE a skill: list_skills → update_skill.
+- To manage schedules: list_schedules → delete_schedule.
+- To check or cancel jobs: list_jobs → cancel_job.
 - When you learn a rule, write it to memory (kind: "rule", stability: "stable").
 - When asked to remember something, call remember immediately.
 - When a memory note is wrong or outdated, use update_memory to correct it.
@@ -85,32 +100,37 @@ export function applyAgentSoul(
 }
 
 /**
- * Ensures the agent's soul is initialized. Idempotent — safe to call on every request.
- * If user has configured an agent, uses their settings; otherwise falls back to defaults.
+ * Ensures the agent's soul is initialized and up-to-date. Safe to call on every request.
+ * - If no soul exists: creates one from user's agent config or DEFAULT_SOUL.
+ * - If soul exists: compares content against current buildSoulContent() and updates if stale.
+ *   This ensures Principles changes propagate to all users on next request.
  * Called by runAgentLoop() before each session and by the users API on page load.
  */
 export function ensureSoulExists(userId = 'user_default'): void {
   const db = getDb();
   const existing = db.prepare(
-    `SELECT id FROM memory_notes WHERE kind = 'soul' AND user_id = ? LIMIT 1`
-  ).get(userId);
+    `SELECT id, content FROM memory_notes WHERE kind = 'soul' AND user_id = ? LIMIT 1`
+  ).get(userId) as { id: string; content: string } | undefined;
+
+  const user = getUser(userId);
+  const agentConfig = user?.preferences.agent;
+  const expectedContent = agentConfig?.name
+    ? buildSoulContent(agentConfig, user?.preferredName)
+    : DEFAULT_SOUL;
 
   if (!existing) {
-    const user = getUser(userId);
-    const agentConfig = user?.preferences.agent;
-
-    if (agentConfig?.name) {
-      // Recreate with the user's personalized agent config
-      applyAgentSoul(userId, agentConfig, user?.preferredName);
-    } else {
-      writeNote({
-        kind: 'soul',
-        content: DEFAULT_SOUL,
-        userId,
-        stability: 'permanent',
-        sensitivity: 'normal',
-      });
-    }
+    writeNote({
+      kind: 'soul',
+      content: expectedContent,
+      userId,
+      stability: 'permanent',
+      sensitivity: 'normal',
+    });
     console.log('Soul initialized for user:', userId);
+  } else if (existing.content !== expectedContent) {
+    // Soul is stale — update to reflect latest Principles
+    db.prepare(`UPDATE memory_notes SET content = ?, updated_at = ? WHERE id = ?`)
+      .run(expectedContent, new Date().toISOString(), existing.id);
+    console.log('Soul refreshed for user:', userId);
   }
 }

@@ -20,13 +20,16 @@ export default function ChatPage() {
   const [agentName, setAgentName] = useState('vibemon-agent');
   const [preferredName, setPreferredName] = useState('');
   const bottomRef = useRef<HTMLDivElement>(null);
+  const isInitialLoad = useRef(true);
 
-  // Load user profile on mount
+  // Load user profile and conversation history on mount
   useEffect(() => {
-    fetch(`/api/users/${USER_ID}`)
-      .then(r => r.json())
-      .then(data => {
-        const user = data.user;
+    Promise.all([
+      fetch(`/api/users/${USER_ID}`).then(r => r.json()),
+      fetch(`/api/conversations?userId=${USER_ID}`).then(r => r.json()),
+    ])
+      .then(([userData, historyData]) => {
+        const user = userData.user;
         const prefs = user?.preferences ?? {};
         // Require agent name — users with onboarded:true but no agent config see onboarding again
         const isOnboarded = !!prefs.onboarded && !!prefs.agent?.name;
@@ -38,11 +41,23 @@ export default function ChatPage() {
         setOnboarded(isOnboarded);
 
         if (isOnboarded) {
-          setMessages([{
-            role: 'assistant',
-            content: `Hi${pName ? `, ${pName}` : ''}! I'm ${aName}. How can I help you today?`,
-            timestamp: new Date().toISOString(),
-          }]);
+          const history: Message[] = (historyData.messages ?? []).map(
+            (m: { role: 'user' | 'assistant'; content: string; created_at: string }) => ({
+              role: m.role,
+              content: m.content,
+              timestamp: m.created_at,
+            })
+          );
+
+          if (history.length > 0) {
+            setMessages(history);
+          } else {
+            setMessages([{
+              role: 'assistant',
+              content: `Hi${pName ? `, ${pName}` : ''}! I'm ${aName}. How can I help you today?`,
+              timestamp: new Date().toISOString(),
+            }]);
+          }
         }
       })
       .catch(() => {
@@ -52,7 +67,13 @@ export default function ChatPage() {
   }, []);
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (messages.length === 0) return;
+    if (isInitialLoad.current) {
+      bottomRef.current?.scrollIntoView({ behavior: 'instant' });
+      isInitialLoad.current = false;
+    } else {
+      bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
   }, [messages]);
 
   const handleOnboardingComplete = async (data: OnboardingData) => {

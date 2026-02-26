@@ -312,6 +312,126 @@ agentTools.push({
   },
 });
 
+// ─── delete_skill ─────────────────────────────────────────────────────────────
+agentTools.push({
+  definition: {
+    name: 'delete_skill',
+    description: 'Delete a skill by ID. Also deletes all associated schedules. Use list_skills to find the skillId first.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        skillId: { type: 'string', description: 'ID of the skill to delete' },
+      },
+      required: ['skillId'],
+    },
+  },
+  async execute(input) {
+    const { deleteSkillForAgent } = await import('../tools/delete_skill');
+    return deleteSkillForAgent(input.skillId as string);
+  },
+});
+
+// ─── update_skill ─────────────────────────────────────────────────────────────
+agentTools.push({
+  definition: {
+    name: 'update_skill',
+    description: 'Update an existing skill\'s name, goal, or allowed tools. Use list_skills to find the skillId first.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        skillId: { type: 'string', description: 'ID of the skill to update' },
+        name: { type: 'string', description: 'New name (optional)' },
+        goal: { type: 'string', description: 'New goal description (optional)' },
+        tools: { type: 'array', items: { type: 'string' }, description: 'New allowed tools list (optional)' },
+      },
+      required: ['skillId'],
+    },
+  },
+  async execute(input) {
+    const { updateSkillForAgent } = await import('../tools/update_skill');
+    return updateSkillForAgent({
+      skillId: input.skillId as string,
+      name: input.name as string | undefined,
+      goal: input.goal as string | undefined,
+      tools: input.tools as string[] | undefined,
+    });
+  },
+});
+
+// ─── list_schedules ───────────────────────────────────────────────────────────
+agentTools.push({
+  definition: {
+    name: 'list_schedules',
+    description: 'List all registered cron schedules with their linked skill names and status.',
+    inputSchema: {
+      type: 'object',
+      properties: {},
+      required: [],
+    },
+  },
+  async execute() {
+    const { listSchedulesForAgent } = await import('../tools/list_schedules');
+    return listSchedulesForAgent();
+  },
+});
+
+// ─── delete_schedule ──────────────────────────────────────────────────────────
+agentTools.push({
+  definition: {
+    name: 'delete_schedule',
+    description: 'Delete a cron schedule by ID. The skill itself is NOT deleted. Use list_schedules to find the scheduleId first.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        scheduleId: { type: 'string', description: 'ID of the schedule to delete' },
+      },
+      required: ['scheduleId'],
+    },
+  },
+  async execute(input) {
+    const { deleteScheduleForAgent } = await import('../tools/delete_schedule');
+    return deleteScheduleForAgent(input.scheduleId as string);
+  },
+});
+
+// ─── list_jobs ────────────────────────────────────────────────────────────────
+agentTools.push({
+  definition: {
+    name: 'list_jobs',
+    description: 'List recent jobs with their status. Use to check what jobs are running, queued, or completed.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        limit: { type: 'number', description: 'Max number of jobs to return (default 10)' },
+      },
+      required: [],
+    },
+  },
+  async execute(input) {
+    const { listJobsForAgent } = await import('../tools/list_jobs');
+    return listJobsForAgent((input.limit as number) || 10);
+  },
+});
+
+// ─── cancel_job ───────────────────────────────────────────────────────────────
+agentTools.push({
+  definition: {
+    name: 'cancel_job',
+    description: 'Cancel a queued job. Cannot cancel jobs that are already running or completed. Use list_jobs to find the jobId.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        jobId: { type: 'string', description: 'ID of the job to cancel' },
+      },
+      required: ['jobId'],
+    },
+  },
+  async execute(input) {
+    const { cancelJobForAgent } = await import('../tools/cancel_job');
+    return cancelJobForAgent(input.jobId as string);
+  },
+});
+
 // ─── Public API ──────────────────────────────────────────────────────────────
 export function getAgentTools(): LLMTool[] {
   return agentTools.map(t => t.definition);

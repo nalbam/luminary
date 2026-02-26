@@ -56,7 +56,7 @@ The scheduler and maintenance loops are bootstrapped by `src/instrumentation.ts`
 POST /api/chat
   → handleUserMessage (loops/interactive.ts)
     → ensureSoulExists (agent/soul.ts)       # initialize soul on first call
-    → buildAgentContext (agent/context.ts)    # soul → rule → summary priority
+    → buildAgentContext (agent/context.ts)    # soul → rule → summary, message-aware semantic retrieval
     → runAgentLoop (agent/loop.ts)
       → saveUserMessage (memory/conversations.ts)
       → getConversationHistory               # multi-turn history

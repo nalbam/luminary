@@ -36,8 +36,8 @@ export async function runAgentLoop(
   saveUserMessage(userId, message);
   const history: ConversationMessage[] = getConversationHistory(userId);
 
-  // 컨텍스트 + 도구
-  const rawSystemPrompt = buildAgentContext(userId);
+  // 컨텍스트 + 도구 (현재 메시지 기반 시맨틱 검색 포함)
+  const rawSystemPrompt = await buildAgentContext(userId, message);
   const systemPrompt = rawSystemPrompt ||
     'You are a proactive personal AI assistant. Be concise, direct, and helpful.';
   const tools = getAgentTools();

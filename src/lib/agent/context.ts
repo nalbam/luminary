@@ -1,19 +1,68 @@
 // src/lib/agent/context.ts
-import { getNotes } from '../memory/notes';
+import { getNotes, getNoteById } from '../memory/notes';
 import { getUser } from '../memory/users';
 
 /**
  * Builds the system prompt for the agentic loop.
- * Loads soul notes first (identity/principles), then user profile,
- * then rule notes (learned rules), then recent summary notes (context).
- * Called by runAgentLoop() in src/lib/agent/loop.ts.
+ *
+ * Priority order:
+ *   1. Soul notes (identity/principles)
+ *   2. User profile (name, timezone, interests)
+ *   3. Rule notes — semantically relevant to `message` if provided, else most recent
+ *   4. Summary notes — semantically relevant to `message` if provided, else most recent
+ *
+ * When `message` is provided and OPENAI_API_KEY + sqlite-vec are available,
+ * relevant notes are retrieved via vector similarity search so the agent sees
+ * the RIGHT memories, not just the newest ones.
  */
-export function buildAgentContext(userId: string): string {
+export async function buildAgentContext(userId: string, message?: string): Promise<string> {
   const soulNotes = getNotes({ userId, kind: 'soul', limit: 5 });
-  const ruleNotes = getNotes({ userId, kind: 'rule', limit: 10 })
-    .filter(n => n.sensitivity !== 'sensitive');
-  const summaryNotes = getNotes({ userId, kind: 'summary', limit: 5 })
-    .filter(n => n.sensitivity !== 'sensitive');
+
+  // Attempt semantic retrieval when a message is available
+  let relevantNoteIds: Set<string> = new Set();
+  if (message && process.env.OPENAI_API_KEY) {
+    try {
+      const { getEmbedding, searchSimilar } = await import('../memory/embeddings');
+      const queryVec = await getEmbedding(message);
+      const ids = await searchSimilar(queryVec, 15);
+      relevantNoteIds = new Set(ids);
+    } catch {
+      // Embeddings unavailable — fall back to recency-based loading below
+    }
+  }
+
+  // Load rule notes: prefer semantically relevant, then fill with recent
+  let ruleNotes = relevantNoteIds.size > 0
+    ? [...relevantNoteIds]
+        .map(id => getNoteById(id))
+        .filter((n): n is NonNullable<typeof n> =>
+          n !== null && n.kind === 'rule' && !n.supersededBy &&
+          n.userId === userId && n.sensitivity !== 'sensitive')
+        .slice(0, 10)
+    : [];
+
+  if (ruleNotes.length < 5) {
+    // Top up with recent rules not already included
+    const recentRules = getNotes({ userId, kind: 'rule', limit: 10 })
+      .filter(n => n.sensitivity !== 'sensitive' && !relevantNoteIds.has(n.id));
+    ruleNotes = [...ruleNotes, ...recentRules].slice(0, 10);
+  }
+
+  // Load summary notes: prefer semantically relevant, then fill with recent
+  let summaryNotes = relevantNoteIds.size > 0
+    ? [...relevantNoteIds]
+        .map(id => getNoteById(id))
+        .filter((n): n is NonNullable<typeof n> =>
+          n !== null && n.kind === 'summary' && !n.supersededBy &&
+          n.userId === userId && n.sensitivity !== 'sensitive')
+        .slice(0, 5)
+    : [];
+
+  if (summaryNotes.length < 3) {
+    const recentSummaries = getNotes({ userId, kind: 'summary', limit: 5 })
+      .filter(n => n.sensitivity !== 'sensitive' && !relevantNoteIds.has(n.id));
+    summaryNotes = [...summaryNotes, ...recentSummaries].slice(0, 5);
+  }
 
   const parts: string[] = [];
 
@@ -37,12 +86,12 @@ export function buildAgentContext(userId: string): string {
     parts.push(lines.join('\n'));
   }
 
-  // Rules: learned user rules
+  // Rules: learned user rules (relevance-prioritized)
   if (ruleNotes.length > 0) {
     parts.push('## Rules\n' + ruleNotes.map(n => `- ${n.content}`).join('\n'));
   }
 
-  // Recent context: recent work summaries
+  // Recent context: recent work summaries (relevance-prioritized)
   if (summaryNotes.length > 0) {
     parts.push('## Recent Context\n' + summaryNotes.map(n => n.content).join('\n\n'));
   }

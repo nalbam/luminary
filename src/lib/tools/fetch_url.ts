@@ -1,4 +1,6 @@
 // src/lib/tools/fetch_url.ts
+import { registerTool } from './registry';
+
 export async function fetchUrl(url: string, maxLength = 8000): Promise<string> {
   // Validate URL scheme
   let parsed: URL;
@@ -56,3 +58,24 @@ export async function fetchUrl(url: string, maxLength = 8000): Promise<string> {
 
   return stripped.slice(0, maxLength);
 }
+
+registerTool({
+  name: 'fetch_url',
+  description: 'Fetch and read the content of a URL. Strips HTML tags and returns plain text. Use for reading web pages, APIs, or documents.',
+  inputSchema: {
+    type: 'object',
+    properties: {
+      url: { type: 'string', description: 'URL to fetch (http/https only)' },
+      maxLength: { type: 'number', description: 'Max characters to return (default 8000)' },
+    },
+    required: ['url'],
+  },
+  async run(input) {
+    try {
+      const content = await fetchUrl(input.url as string, (input.maxLength as number) || 8000);
+      return { output: { url: input.url, content } };
+    } catch (e: unknown) {
+      return { output: null, error: String(e) };
+    }
+  },
+});

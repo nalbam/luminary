@@ -10,6 +10,7 @@ import '../tools/remember';
 import '../tools/search';
 import '../tools/list_memory';
 import '../tools/bash';
+import '../tools/fetch_url';
 
 export async function enqueueJob(
   skillId: string | null,

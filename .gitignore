@@ -48,7 +48,8 @@ next-env.d.ts
 .prompt-*.md
 .prompt.md
 docs/plans/
+analysis/
+.worktrees/
 
 # local runtime data
 /data/
-.worktrees/

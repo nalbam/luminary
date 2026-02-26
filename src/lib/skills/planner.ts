@@ -1,5 +1,6 @@
 // src/lib/skills/planner.ts
 import { getClient } from '../llm/client';
+import type { LLMClient } from '../llm/types';
 import { listTools } from '../tools/registry';
 
 export interface ToolCall {
@@ -18,13 +19,14 @@ export async function planSkill(
   skillTools: string[],
   jobInput: Record<string, unknown>
 ): Promise<Plan> {
-  let llm;
+  let llm: LLMClient;
   try {
     llm = getClient();
   } catch (e) {
     return { steps: [], reasoning: `LLM not configured: ${String(e)}` };
   }
 
+  // If no specific tools are specified, allow all registered tools
   const availableTools = listTools().filter(t =>
     skillTools.length === 0 || skillTools.includes(t.name)
   );
@@ -39,14 +41,14 @@ Available tools:
 ${toolDescriptions}
 
 Respond with ONLY a valid JSON object — no markdown, no explanation:
-{"reasoning": "<brief explanation>", "steps": [{"toolName": "<tool>", "input": {<key>: <value>}}]}`;
+{"reasoning": "<brief explanation>", "steps": [{"toolName": "web_search", "input": {"query": "example search"}}]}`;
 
   try {
     const response = await llm.complete({
       system: systemPrompt,
       messages: [{ role: 'user', content: `Skill: ${skillName}\nGoal: ${skillGoal}\nInput: ${JSON.stringify(jobInput)}` }],
       tools: [],
-      maxTokens: 1000,
+      maxTokens: 2000,
     });
 
     if (response.type !== 'text') {

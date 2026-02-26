@@ -67,16 +67,17 @@ export async function runAgentLoop(
       saveAssistantToolCalls(userId, response.toolCalls);
       history.push({ role: 'assistant_tool_calls', toolCalls: response.toolCalls });
 
-      const toolResults = [];
-      for (const call of response.toolCalls) {
-        let result: unknown;
-        try {
-          result = await executeAgentTool(call.name, call.input, { userId });
-        } catch (e) {
-          result = { error: String(e) };
-        }
-        toolResults.push({ toolUseId: call.id, content: JSON.stringify(result) });
-      }
+      const toolResults = await Promise.all(
+        response.toolCalls.map(async (call) => {
+          let result: unknown;
+          try {
+            result = await executeAgentTool(call.name, call.input, { userId });
+          } catch (e) {
+            result = { error: String(e) };
+          }
+          return { toolUseId: call.id, content: JSON.stringify(result) };
+        })
+      );
 
       saveToolResults(userId, toolResults);
       history.push({ role: 'tool_results', results: toolResults });

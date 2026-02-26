@@ -17,6 +17,9 @@ export function buildAgentContext(userId: string): string {
 
   const parts: string[] = [];
 
+  // Current date/time: critical for temporal reasoning (scheduling, "today", deadlines)
+  parts.push(`Current UTC time: ${new Date().toISOString()}`);
+
   // Soul first: agent identity/principles
   if (soulNotes.length > 0) {
     parts.push(soulNotes.map(n => n.content).join('\n'));

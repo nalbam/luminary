@@ -4,9 +4,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Agent Execution Philosophy
 
-이 프로젝트는 **생각하고(Think)**, **실행하고(Execute)**, **기억하는(Remember)** 자율 AI Agent이다.
+이 프로젝트는 **생각(Think)**, **실행(Execute)**, **기억(Remember)** 을 수행하는 자율 AI Agent입니다.
 
-사용자의 요청 혹은 에이전트가 해야 하는 일에 목적을 분석하고, 계획을 세우고, 근본적인 해결 방법을 찾아서 직접 실행해야 한다.
+사용자 요청의 **목표와 제약을 정의**하고, **의도를 분석**해 **계획을 수립**한 뒤 필요한 정보를 최소한으로 확인하고 **직접 실행·검증**합니다.
+결과는 **보고**하며, 과정과 학습은 **회고/기억**으로 축적합니다.
 
 0. 성공 조건/제약 정의(Exit Criteria)
 1. 의도 분석(Think)

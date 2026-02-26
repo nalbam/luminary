@@ -274,12 +274,12 @@ agentTools.push({
 agentTools.push({
   definition: {
     name: 'create_schedule',
-    description: 'Create a recurring schedule for a skill. Supported cron patterns: "*/N * * * *" (every N min), "0 * * * *" (hourly), "0 0 * * *" (daily).',
+    description: 'Create a recurring schedule for a skill using standard cron syntax (UTC timezone). Minimum interval: 5 minutes.',
     inputSchema: {
       type: 'object',
       properties: {
         skillId: { type: 'string', description: 'ID of the skill to schedule' },
-        cronExpr: { type: 'string', description: 'Cron expression, e.g. "0 9 * * *" for 9am daily' },
+        cronExpr: { type: 'string', description: 'Standard cron expression (UTC). Examples: "*/15 * * * *" (every 15min), "0 * * * *" (hourly), "0 9 * * *" (daily 9am), "0 9 * * 1" (Mon 9am)' },
       },
       required: ['skillId', 'cronExpr'],
     },

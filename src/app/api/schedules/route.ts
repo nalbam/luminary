@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDb } from '@/lib/db';
 import { v4 as uuidv4 } from 'uuid';
+import { validateCronExpr } from '@/lib/tools/cron-utils';
 
 export async function GET() {
   try {
@@ -27,13 +28,19 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Skill not found' }, { status: 404 });
     }
 
+    try {
+      validateCronExpr(cronExpr);
+    } catch (e) {
+      return NextResponse.json({ error: String(e) }, { status: 400 });
+    }
+
     const id = uuidv4();
     const now = new Date().toISOString();
 
     db.prepare(`
       INSERT INTO schedules (id, skill_id, cron_expr, created_at)
       VALUES (?, ?, ?, ?)
-    `).run(id, skillId, cronExpr, now);
+    `).run(id, skillId, (cronExpr as string).trim(), now);
 
     const schedule = db.prepare('SELECT * FROM schedules WHERE id = ?').get(id);
     return NextResponse.json({ schedule }, { status: 201 });

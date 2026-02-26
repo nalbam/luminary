@@ -66,6 +66,7 @@ export async function runAgentLoop(
   // Agentic loop
   let iterations = 0;
   const executedTools: string[] = []; // Track tool calls for auto-summary
+  const executedToolResults: string[] = []; // Track key results for richer reflection (Step 7)
 
   while (iterations < MAX_ITERATIONS) {
     iterations++;
@@ -103,9 +104,12 @@ export async function runAgentLoop(
       // without relying on LLM discretion.
       if (executedTools.length >= 1) {
         const toolSummary = executedTools.join(' → ');
+        const resultContext = executedToolResults.length > 0
+          ? `\nKey results:\n${executedToolResults.join('\n')}`
+          : '';
         writeNote({
           kind: 'summary',
-          content: `[Auto-Reflect] Task: "${message.slice(0, 120)}"\nTools used (${executedTools.length}): ${toolSummary}\nResult: ${response.text.slice(0, 400)}`,
+          content: `[Auto-Reflect] Task: "${message.slice(0, 200)}"\nTools used (${executedTools.length}): ${toolSummary}${resultContext}\nOutcome: ${response.text.slice(0, 800)}`,
           userId,
           stability: 'volatile',
           ttlDays: 7,
@@ -131,6 +135,9 @@ export async function runAgentLoop(
         const skipForSummary = new Set(['remember', 'update_memory', 'update_soul', 'list_memory']);
         if (!skipForSummary.has(call.name)) {
           executedTools.push(call.name);
+          // Capture a brief result snippet for richer Step 7 reflection
+          const raw = JSON.stringify(result);
+          executedToolResults.push(`${call.name}: ${raw.length > 200 ? raw.slice(0, 200) + '...' : raw}`);
         }
         toolResults.push({ toolUseId: call.id, content: JSON.stringify(result) });
       }

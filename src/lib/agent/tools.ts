@@ -395,6 +395,55 @@ agentTools.push({
   },
 });
 
+// ─── update_schedule ──────────────────────────────────────────────────────────
+agentTools.push({
+  definition: {
+    name: 'update_schedule',
+    description: 'Update a cron schedule: change cron expression, enable/disable, or change its target routine or tool. Use list_schedules first to get the ID.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        scheduleId: { type: 'string', description: 'ID of the schedule to update' },
+        cronExpr: { type: 'string', description: 'New cron expression (5-field, UTC, min interval 5 minutes)' },
+        enabled: { type: 'boolean', description: 'Enable or disable the schedule' },
+        routineId: { type: 'string', description: 'New routine ID to link (set null to unlink)' },
+        toolName: { type: 'string', description: 'New tool name for direct tool_call schedules' },
+        toolInput: { type: 'object', description: 'New tool input for direct tool_call schedules', additionalProperties: true },
+      },
+      required: ['scheduleId'],
+    },
+  },
+  async execute(input) {
+    const db = (await import('../db')).getDb();
+    const { validateCronExpr } = await import('../tools/cron-utils');
+    const id = input.scheduleId as string;
+    const existing = db.prepare('SELECT id FROM schedules WHERE id = ?').get(id);
+    if (!existing) return { error: `Schedule ${id} not found` };
+
+    const { cronExpr, enabled, routineId, toolName, toolInput } = input as {
+      cronExpr?: string; enabled?: boolean; routineId?: string;
+      toolName?: string; toolInput?: Record<string, unknown>;
+    };
+
+    if (cronExpr) {
+      try { validateCronExpr(cronExpr); } catch (e) { return { error: String(e) }; }
+    }
+
+    const fields: string[] = [];
+    const values: unknown[] = [];
+    if (cronExpr !== undefined) { fields.push('cron_expr = ?'); values.push(cronExpr.trim()); }
+    if (enabled !== undefined) { fields.push('enabled = ?'); values.push(enabled ? 1 : 0); }
+    if (routineId !== undefined) { fields.push('routine_id = ?'); values.push(routineId || null); }
+    if (toolName !== undefined) { fields.push('tool_name = ?'); values.push(toolName || null); }
+    if (toolInput !== undefined) { fields.push('tool_input = ?'); values.push(JSON.stringify(toolInput)); }
+
+    if (fields.length === 0) return { error: 'No fields to update' };
+    values.push(id);
+    db.prepare(`UPDATE schedules SET ${fields.join(', ')} WHERE id = ?`).run(...values);
+    return { success: true, scheduleId: id };
+  },
+});
+
 // ─── delete_schedule ──────────────────────────────────────────────────────────
 agentTools.push({
   definition: {

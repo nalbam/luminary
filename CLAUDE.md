@@ -106,7 +106,7 @@ Both providers implement the same `LLMClient` interface. LLMTool.inputSchema **m
 
 ### Agent Tools (`src/lib/agent/tools.ts`)
 
-20 tools available during chat via the agentic loop:
+21 tools available during chat via the agentic loop:
 
 | Tool | Purpose |
 |------|---------|
@@ -125,6 +125,7 @@ Both providers implement the same `LLMClient` interface. LLMTool.inputSchema **m
 | `create_skill` | Create an integration (type: telegram/slack/webhook/custom) |
 | `create_schedule` | Create a cron schedule (routineId OR toolName+toolInput) |
 | `list_schedules` | List active schedules |
+| `update_schedule` | Update a schedule's cron expression, enabled state, or target |
 | `delete_schedule` | Delete a schedule |
 | `create_job` | Create and run a routine job |
 | `list_jobs` | List recent jobs |

@@ -13,7 +13,10 @@ const registeredTasks = new Map<string, RegisteredTask>();
 
 interface ScheduleRow {
   id: string;
-  skill_id: string;
+  routine_id: string | null;
+  action_type: 'routine' | 'tool_call';
+  tool_name: string | null;
+  tool_input: string | null;
   cron_expr: string;
 }
 
@@ -21,7 +24,7 @@ function syncSchedules(): void {
   try {
     const db = getDb();
     const enabled = db.prepare(
-      'SELECT id, skill_id, cron_expr FROM schedules WHERE enabled = 1'
+      'SELECT id, routine_id, action_type, tool_name, tool_input, cron_expr FROM schedules WHERE enabled = 1'
     ).all() as ScheduleRow[];
 
     const enabledIds = new Set(enabled.map(s => s.id));
@@ -50,20 +53,35 @@ function syncSchedules(): void {
       }
 
       const task = cron.schedule(schedule.cron_expr, async () => {
-        console.log(`Triggering scheduled job for skill ${schedule.skill_id}`);
         try {
           const db = getDb();
           db.prepare('UPDATE schedules SET last_run_at = ? WHERE id = ?')
             .run(new Date().toISOString(), schedule.id);
-          const jobId = await enqueueJob(schedule.skill_id, 'schedule', {}, undefined);
-          runJob(jobId).catch(e => console.error('Scheduled job error:', e));
+
+          if (schedule.action_type === 'tool_call' && schedule.tool_name) {
+            // Direct tool_call: enqueue job with no routine
+            console.log(`Triggering scheduled tool_call: ${schedule.tool_name}`);
+            const jobDb = getDb();
+            const jobId = await enqueueJob(null, 'schedule', {}, undefined);
+            // Store tool info directly on the job row
+            jobDb.prepare('UPDATE jobs SET tool_name = ?, tool_input = ? WHERE id = ?')
+              .run(schedule.tool_name, schedule.tool_input || '{}', jobId);
+            runJob(jobId).catch(e => console.error('Scheduled tool_call job error:', e));
+          } else if (schedule.routine_id) {
+            // Routine-based: enqueue job linked to routine
+            console.log(`Triggering scheduled routine: ${schedule.routine_id}`);
+            const jobId = await enqueueJob(schedule.routine_id, 'schedule', {}, undefined);
+            runJob(jobId).catch(e => console.error('Scheduled routine job error:', e));
+          } else {
+            console.warn(`Schedule ${schedule.id} has no routine_id and action_type is not 'tool_call' — skipping`);
+          }
         } catch (e) {
           console.error('Schedule trigger error:', e);
         }
       }, { timezone: 'UTC' });
 
       registeredTasks.set(schedule.id, { task, cronExpr: schedule.cron_expr });
-      console.log(`Registered schedule ${schedule.id} (${schedule.cron_expr})`);
+      console.log(`Registered schedule ${schedule.id} (${schedule.cron_expr}, action_type=${schedule.action_type})`);
     }
   } catch (e) {
     console.error('Scheduler sync error:', e);

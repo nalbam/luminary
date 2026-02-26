@@ -1,6 +1,8 @@
 interface Job {
   id: string;
-  skill_id?: string;
+  routine_id?: string;
+  routine_name?: string;
+  tool_name?: string;
   trigger_type: string;
   status: string;
   input?: string;
@@ -52,7 +54,7 @@ export default function JobCard({ job, onClick, selected }: JobCardProps) {
               {job.id.slice(0, 8)}
             </span>
           </div>
-          <div className="flex items-center gap-2 mt-1.5">
+          <div className="flex items-center gap-2 mt-1.5 flex-wrap">
             <span
               className="text-xs px-2 py-0.5 rounded-full font-medium"
               style={{ background: cfg.bg, color: cfg.text }}
@@ -62,6 +64,16 @@ export default function JobCard({ job, onClick, selected }: JobCardProps) {
             <span className="text-xs" style={{ color: '#475569' }}>
               {job.trigger_type}
             </span>
+            {job.routine_name && (
+              <span className="text-xs font-mono" style={{ color: '#6d6a85' }}>
+                {job.routine_name}
+              </span>
+            )}
+            {job.tool_name && !job.routine_name && (
+              <span className="text-xs font-mono" style={{ color: '#6d6a85' }}>
+                {job.tool_name}
+              </span>
+            )}
           </div>
         </div>
         <div className="text-right flex-shrink-0">

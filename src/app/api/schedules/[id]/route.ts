@@ -10,8 +10,8 @@ export async function GET(
     const { id } = await params;
     const db = getDb();
     const schedule = db.prepare(`
-      SELECT s.*, sk.name as skill_name
-      FROM schedules s LEFT JOIN skills sk ON sk.id = s.skill_id
+      SELECT s.*, r.name as routine_name
+      FROM schedules s LEFT JOIN routines r ON r.id = s.routine_id
       WHERE s.id = ?
     `).get(id);
     if (!schedule) {

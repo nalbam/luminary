@@ -14,10 +14,10 @@ export interface Plan {
   reasoning: string;
 }
 
-export async function planSkill(
-  skillName: string,
-  skillGoal: string,
-  skillTools: string[],
+export async function planRoutine(
+  routineName: string,
+  routineGoal: string,
+  routineTools: string[],
   jobInput: Record<string, unknown>
 ): Promise<Plan> {
   let llm: LLMClient;
@@ -29,17 +29,20 @@ export async function planSkill(
 
   // If no specific tools are specified, allow all registered tools
   const availableTools = listTools().filter(t =>
-    skillTools.length === 0 || skillTools.includes(t.name)
+    routineTools.length === 0 || routineTools.includes(t.name)
   );
 
   const toolDescriptions = availableTools.map(t =>
     `- ${t.name}: ${t.description}`
   ).join('\n');
 
-  const systemPrompt = `You are a task planner. Given a skill name, goal, and available tools, create a step-by-step execution plan.
+  const systemPrompt = `You are a task planner. Given a routine name, goal, and available tools, create a step-by-step execution plan.
 
 Available tools:
 ${toolDescriptions}
+
+IMPORTANT: Only use tools from the list above. Do NOT invent tool names.
+Commands must complete within 30 seconds — use quick one-liners, not long-running processes.
 
 Respond with ONLY a valid JSON object — no markdown, no explanation:
 {"reasoning": "<brief explanation>", "steps": [{"toolName": "web_search", "input": {"query": "example search"}}]}`;
@@ -47,7 +50,7 @@ Respond with ONLY a valid JSON object — no markdown, no explanation:
   try {
     const response = await llm.complete({
       system: systemPrompt,
-      messages: [{ role: 'user', content: `Skill: ${skillName}\nGoal: ${skillGoal}\nInput: ${JSON.stringify(jobInput)}` }],
+      messages: [{ role: 'user', content: `Routine: ${routineName}\nGoal: ${routineGoal}\nInput: ${JSON.stringify(jobInput)}` }],
       tools: [],
       maxTokens: 2000,
     });
@@ -65,9 +68,20 @@ Respond with ONLY a valid JSON object — no markdown, no explanation:
 
     const result = JSON.parse(jsonStr) as { steps?: ToolCall[]; reasoning?: string };
     const steps = Array.isArray(result.steps) ? result.steps : [];
+
+    // Validate: filter out steps with unregistered tools
+    const registeredNames = new Set(availableTools.map(t => t.name));
+    const validSteps = steps.filter(s => {
+      if (!registeredNames.has(s.toolName)) {
+        console.warn(`Planner: tool "${s.toolName}" not registered — dropping step`);
+        return false;
+      }
+      return true;
+    });
+
     return {
-      success: steps.length > 0,
-      steps,
+      success: validSteps.length > 0,
+      steps: validSteps,
       reasoning: result.reasoning || '',
     };
   } catch (e) {
@@ -75,3 +89,6 @@ Respond with ONLY a valid JSON object — no markdown, no explanation:
     return { success: false, steps: [], reasoning: `Error: ${String(e)}` };
   }
 }
+
+/** @deprecated Use planRoutine instead */
+export const planSkill = planRoutine;

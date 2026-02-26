@@ -10,8 +10,8 @@ CREATE TABLE IF NOT EXISTS users (
   updated_at TEXT DEFAULT (datetime('now'))
 );
 
--- skills table  
-CREATE TABLE IF NOT EXISTS skills (
+-- routines table (complex multi-step task recipes, LLM-planned execution)
+CREATE TABLE IF NOT EXISTS routines (
   id TEXT PRIMARY KEY,
   name TEXT NOT NULL,
   goal TEXT NOT NULL,
@@ -26,10 +26,28 @@ CREATE TABLE IF NOT EXISTS skills (
   updated_at TEXT DEFAULT (datetime('now'))
 );
 
--- schedules table
+-- skills table (integration modules: Telegram, Slack, Google Calendar, etc.)
+CREATE TABLE IF NOT EXISTS skills (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  type TEXT NOT NULL CHECK (type IN ('telegram', 'slack', 'google_calendar', 'webhook', 'custom')),
+  config TEXT DEFAULT '{}',
+  status TEXT DEFAULT 'unconfigured' CHECK (status IN ('connected', 'unconfigured', 'error')),
+  last_tested_at TEXT,
+  enabled INTEGER DEFAULT 1,
+  user_id TEXT DEFAULT 'user_default',
+  created_at TEXT DEFAULT (datetime('now')),
+  updated_at TEXT DEFAULT (datetime('now'))
+);
+
+-- schedules table (independent — can trigger a routine or a direct tool_call)
 CREATE TABLE IF NOT EXISTS schedules (
   id TEXT PRIMARY KEY,
-  skill_id TEXT NOT NULL REFERENCES skills(id),
+  routine_id TEXT REFERENCES routines(id),
+  action_type TEXT NOT NULL DEFAULT 'routine'
+    CHECK (action_type IN ('routine', 'tool_call')),
+  tool_name TEXT,
+  tool_input TEXT DEFAULT '{}',
   cron_expr TEXT NOT NULL,
   enabled INTEGER DEFAULT 1,
   last_run_at TEXT,
@@ -40,9 +58,12 @@ CREATE TABLE IF NOT EXISTS schedules (
 -- jobs table
 CREATE TABLE IF NOT EXISTS jobs (
   id TEXT PRIMARY KEY,
-  skill_id TEXT REFERENCES skills(id),
+  routine_id TEXT REFERENCES routines(id),
+  tool_name TEXT,
+  tool_input TEXT DEFAULT '{}',
   trigger_type TEXT NOT NULL,
-  status TEXT NOT NULL DEFAULT 'queued' CHECK (status IN ('queued','running','succeeded','failed','canceled')),
+  status TEXT NOT NULL DEFAULT 'queued'
+    CHECK (status IN ('queued','running','succeeded','failed','canceled')),
   input TEXT DEFAULT '{}',
   result TEXT,
   error TEXT,
@@ -65,8 +86,8 @@ CREATE TABLE IF NOT EXISTS step_runs (
   artifact_path TEXT
 );
 
--- NOTE: If upgrading from a previous version, delete data/vibemon.db to apply CHECK constraint changes.
--- Run: rm -f data/vibemon.db data/vibemon.db-wal data/vibemon.db-shm
+-- NOTE: To apply schema changes, delete and recreate the database:
+-- rm -f data/vibemon.db data/vibemon.db-wal data/vibemon.db-shm
 
 -- memory_notes table
 CREATE TABLE IF NOT EXISTS memory_notes (

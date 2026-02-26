@@ -88,7 +88,7 @@ agentTools.push({
 agentTools.push({
   definition: {
     name: 'update_memory',
-    description: 'Update an existing memory note by replacing its content. Use to correct, refine, or extend a previously written note. The old note is superseded and a new one is created.',
+    description: 'Update an existing memory note by replacing its content. Use to correct, refine, or extend a previously written note. The old note is superseded and a new one is created. Note: cannot be used to update soul notes — use update_soul instead.',
     inputSchema: {
       type: 'object',
       properties: {

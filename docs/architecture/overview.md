@@ -14,9 +14,12 @@ graph TB
         CHAT[POST /api/chat]
         JOBS[GET·POST /api/jobs]
         JOBID[GET·PATCH /api/jobs/:id]
+        ROUTINES[GET·POST /api/routines]
+        ROUTINEID[GET·PUT·DELETE /api/routines/:id]
         SKILLS[GET·POST /api/skills]
         SKILLID[GET·PUT·DELETE /api/skills/:id]
         SCHED[GET·POST /api/schedules]
+        SCHEDID[GET·PUT·DELETE /api/schedules/:id]
         MEM[GET /api/memory]
         MAINT[POST /api/maintenance]
     end
@@ -43,7 +46,7 @@ graph TB
         JSONL[JSONL\ndata/events/YYYY-MM-DD/userId.jsonl]
     end
 
-    UI --> CHAT & JOBS & JOBID & SKILLS & SKILLID & SCHED & MEM & MAINT
+    UI --> CHAT & JOBS & JOBID & ROUTINES & ROUTINEID & SKILLS & SKILLID & SCHED & SCHEDID & MEM & MAINT
     CHAT --> ADAPT --> IL
     JOBS & JOBID --> JR
     MAINT --> ML

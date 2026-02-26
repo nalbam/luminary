@@ -22,7 +22,7 @@
 
 - **MUST** access the DB instance only through `getDb()` (`src/lib/db/index.ts`). Never call `new Database()` directly.
 - **MUST** use `JSON.parse()` when reading and `JSON.stringify()` when writing JSON-stored columns.
-  - JSON columns: `tags`, `tools`, `trigger_config`, `budget`, `output_config`, `memory_config`, `preferences`, `evidence`, `input`, `result`
+  - JSON columns: `tags`, `tools`, `trigger_config`, `budget`, `output_config`, `memory_config`, `preferences`, `evidence`, `input`, `result`, `config`, `tool_input`
 - **MUST** generate all timestamps as ISO 8601 strings using `new Date().toISOString()`.
 - **NEVER** remove `better-sqlite3` from `serverExternalPackages`. It requires native bindings.
 

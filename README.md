@@ -63,7 +63,7 @@ src/
       jobs/               # GET/POST /api/jobs, PATCH /api/jobs/:id
       routines/           # GET/POST /api/routines, GET/PUT/DELETE /api/routines/:id
       skills/             # GET/POST /api/skills – integrations (Telegram, Slack…)
-      schedules/          # GET/POST /api/schedules, DELETE /api/schedules/:id
+      schedules/          # GET/POST /api/schedules, GET/PUT/DELETE /api/schedules/:id
       memory/             # GET /api/memory
       conversations/      # GET /api/conversations
       maintenance/        # POST /api/maintenance
@@ -107,7 +107,7 @@ Four kinds of memory notes:
 - **Summary** – Session/job outcomes written automatically after tool use
 - **Log** – Raw event records for audit and replay
 
-### Agent Tools (20)
+### Agent Tools (21)
 
 Tools available during interactive chat via the agentic loop:
 

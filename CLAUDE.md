@@ -62,10 +62,10 @@ POST /api/chat
     → ensureUserExists (memory/users.ts)
     → runAgentLoop (agent/loop.ts)
       → ensureSoulExists (agent/soul.ts)       # initialize/refresh soul
-      → buildAgentContext (agent/context.ts)    # soul → rule → summary, semantic retrieval
       → saveUserMessage (memory/conversations.ts)
       → getConversationHistory               # multi-turn history
-      → LLM call with 20 agent tools
+      → buildAgentContext (agent/context.ts)    # soul → rule → summary, message-aware semantic retrieval
+      → LLM call with 21 agent tools
       → if tool_calls → executeAgentTool() → saveToolResults()
       → if text → saveAssistantMessage() → auto-summary (1+ tools) → return
       → repeat up to MAX_ITERATIONS (10)

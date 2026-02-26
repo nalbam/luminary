@@ -22,6 +22,9 @@ export async function POST(request: NextRequest) {
     if (!skillId || !cronExpr) {
       return NextResponse.json({ error: 'skillId and cronExpr are required' }, { status: 400 });
     }
+    if (typeof skillId !== 'string' || typeof cronExpr !== 'string') {
+      return NextResponse.json({ error: 'skillId and cronExpr must be strings' }, { status: 400 });
+    }
 
     const skill = db.prepare('SELECT id FROM skills WHERE id = ?').get(skillId);
     if (!skill) {
@@ -40,7 +43,7 @@ export async function POST(request: NextRequest) {
     db.prepare(`
       INSERT INTO schedules (id, skill_id, cron_expr, created_at)
       VALUES (?, ?, ?, ?)
-    `).run(id, skillId, (cronExpr as string).trim(), now);
+    `).run(id, skillId, cronExpr.trim(), now);
 
     const schedule = db.prepare('SELECT * FROM schedules WHERE id = ?').get(id);
     return NextResponse.json({ schedule }, { status: 201 });

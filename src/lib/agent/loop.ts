@@ -98,13 +98,14 @@ export async function runAgentLoop(
       saveAssistantMessage(userId, response.text);
       appendEvent({ type: 'assistant_message', userId, payload: { message: response.text } });
 
-      // Auto-summary: if 2+ tools were executed, write a summary note automatically.
-      // This enforces the Remember philosophy without relying on LLM discretion.
+      // Auto-summary (Step 7: Reflect & Remember): if 2+ tools were executed,
+      // write a summary note automatically. This enforces the Remember philosophy
+      // without relying on LLM discretion.
       if (executedTools.length >= 2) {
-        const toolSummary = executedTools.join(', ');
+        const toolSummary = executedTools.join(' → ');
         writeNote({
           kind: 'summary',
-          content: `[Auto] Multi-step task completed (${executedTools.length} tools: ${toolSummary}).\nUser asked: "${message.slice(0, 120)}"\nResult: ${response.text.slice(0, 300)}`,
+          content: `[Auto-Reflect] Task: "${message.slice(0, 120)}"\nTools used (${executedTools.length}): ${toolSummary}\nResult: ${response.text.slice(0, 400)}`,
           userId,
           stability: 'volatile',
           ttlDays: 7,

@@ -57,9 +57,10 @@ Rules:
 - For run_bash: commands must complete within 30 seconds. Use quick one-liner commands. Never use sleep, cron, or commands that block.
 - Keep plans simple: 1-3 steps maximum. Prefer direct tool calls over multi-step pipelines.
 - When the goal contains "알려줘", "알림", "notify", "alert", "send", "tell": MUST use notify tool to deliver the message. Do NOT use remember for notifications.
+- Define exit criteria in reasoning: what does "done" look like for this routine?
 
 Respond with ONLY a valid JSON object — no markdown, no explanation:
-{"reasoning": "<brief explanation>", "steps": [{"toolName": "web_search", "input": {"query": "example search"}}]}`;
+{"reasoning": "<exit criteria + brief explanation>", "steps": [{"toolName": "web_search", "input": {"query": "example search"}}]}`;
 
   try {
     const response = await llm.complete({

@@ -1,4 +1,5 @@
 // src/lib/agent/context.ts
+import os from 'os';
 import { getNotes, getNoteById } from '../memory/notes';
 import { getUser } from '../memory/users';
 
@@ -70,6 +71,15 @@ export async function buildAgentContext(userId: string, message?: string): Promi
   if (soulNotes.length > 0) {
     parts.push(soulNotes.map(n => n.content).join('\n'));
   }
+
+  // System environment: always inject OS/platform so agent uses correct commands
+  const platform = os.platform();
+  const platformCommands = platform === 'darwin'
+    ? 'macOS/Darwin: use vm_stat, top -l 1, ps aux, df -h, du -sh (NOT free/htop/--max-depth GNU opts)'
+    : platform === 'linux'
+    ? 'Linux: use free -m, top -bn1, ps aux, df -h, du -h --max-depth=1'
+    : `Platform: ${platform}`;
+  parts.push(`## System Environment\nOS: ${platform} (${os.arch()}), Node: ${process.version}\n${platformCommands}`);
 
   // User profile: who you are talking to
   const user = getUser(userId);

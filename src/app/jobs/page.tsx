@@ -5,7 +5,9 @@ import JobCard from '@/components/JobCard';
 
 interface Job {
   id: string;
-  skill_id?: string;
+  routine_id?: string;
+  routine_name?: string;
+  tool_name?: string;
   trigger_type: string;
   status: string;
   input?: string;
@@ -120,7 +122,7 @@ export default function JobsPage() {
             >
               <div className="text-3xl mb-3">⚙</div>
               <p className="text-sm" style={{ color: '#64748b' }}>No jobs yet</p>
-              <p className="text-xs mt-1" style={{ color: '#334155' }}>Run a skill to create jobs</p>
+              <p className="text-xs mt-1" style={{ color: '#334155' }}>Run a routine to create jobs</p>
             </div>
           ) : (
             <div className="space-y-2">

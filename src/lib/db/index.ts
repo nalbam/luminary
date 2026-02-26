@@ -46,7 +46,7 @@ export function getDb(): Database.Database {
         created_at TEXT DEFAULT (datetime('now')),
         updated_at TEXT DEFAULT (datetime('now'))
       );
-      CREATE TABLE IF NOT EXISTS skills (
+      CREATE TABLE IF NOT EXISTS routines (
         id TEXT PRIMARY KEY,
         name TEXT NOT NULL,
         goal TEXT NOT NULL,
@@ -60,9 +60,25 @@ export function getDb(): Database.Database {
         created_at TEXT DEFAULT (datetime('now')),
         updated_at TEXT DEFAULT (datetime('now'))
       );
+      CREATE TABLE IF NOT EXISTS skills (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        type TEXT NOT NULL CHECK (type IN ('telegram', 'slack', 'google_calendar', 'webhook', 'custom')),
+        config TEXT DEFAULT '{}',
+        status TEXT DEFAULT 'unconfigured' CHECK (status IN ('connected', 'unconfigured', 'error')),
+        last_tested_at TEXT,
+        enabled INTEGER DEFAULT 1,
+        user_id TEXT DEFAULT 'user_default',
+        created_at TEXT DEFAULT (datetime('now')),
+        updated_at TEXT DEFAULT (datetime('now'))
+      );
       CREATE TABLE IF NOT EXISTS schedules (
         id TEXT PRIMARY KEY,
-        skill_id TEXT NOT NULL REFERENCES skills(id),
+        routine_id TEXT REFERENCES routines(id),
+        action_type TEXT NOT NULL DEFAULT 'routine'
+          CHECK (action_type IN ('routine', 'tool_call')),
+        tool_name TEXT,
+        tool_input TEXT DEFAULT '{}',
         cron_expr TEXT NOT NULL,
         enabled INTEGER DEFAULT 1,
         last_run_at TEXT,
@@ -71,7 +87,9 @@ export function getDb(): Database.Database {
       );
       CREATE TABLE IF NOT EXISTS jobs (
         id TEXT PRIMARY KEY,
-        skill_id TEXT REFERENCES skills(id),
+        routine_id TEXT REFERENCES routines(id),
+        tool_name TEXT,
+        tool_input TEXT DEFAULT '{}',
         trigger_type TEXT NOT NULL,
         status TEXT NOT NULL DEFAULT 'queued' CHECK (status IN ('queued','running','succeeded','failed','canceled')),
         input TEXT DEFAULT '{}',

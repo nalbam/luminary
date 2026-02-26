@@ -27,7 +27,7 @@ export async function PUT(
     const { id } = await params;
     const db = getDb();
     const body = await request.json();
-    const { name, goal, triggerType, triggerConfig, tools, budget, outputConfig, memoryConfig, enabled } = body;
+    const { name, config, status, enabled } = body;
 
     const existing = db.prepare('SELECT * FROM skills WHERE id = ?').get(id);
     if (!existing) {
@@ -37,25 +37,15 @@ export async function PUT(
     db.prepare(`
       UPDATE skills SET
         name = COALESCE(?, name),
-        goal = COALESCE(?, goal),
-        trigger_type = COALESCE(?, trigger_type),
-        trigger_config = COALESCE(?, trigger_config),
-        tools = COALESCE(?, tools),
-        budget = COALESCE(?, budget),
-        output_config = COALESCE(?, output_config),
-        memory_config = COALESCE(?, memory_config),
+        config = COALESCE(?, config),
+        status = COALESCE(?, status),
         enabled = COALESCE(?, enabled),
         updated_at = ?
       WHERE id = ?
     `).run(
       name || null,
-      goal || null,
-      triggerType || null,
-      triggerConfig ? JSON.stringify(triggerConfig) : null,
-      tools ? JSON.stringify(tools) : null,
-      budget ? JSON.stringify(budget) : null,
-      outputConfig ? JSON.stringify(outputConfig) : null,
-      memoryConfig ? JSON.stringify(memoryConfig) : null,
+      config ? JSON.stringify(config) : null,
+      status || null,
       enabled !== undefined ? (enabled ? 1 : 0) : null,
       new Date().toISOString(),
       id

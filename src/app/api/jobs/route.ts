@@ -9,13 +9,17 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get('status');
     const limit = Math.max(1, Math.min(200, parseInt(searchParams.get('limit') || '50', 10) || 50));
 
-    let query = 'SELECT * FROM jobs';
+    let query = `
+      SELECT j.*, r.name as routine_name
+      FROM jobs j
+      LEFT JOIN routines r ON r.id = j.routine_id
+    `;
     const params: unknown[] = [];
     if (status) {
-      query += ' WHERE status = ?';
+      query += ' WHERE j.status = ?';
       params.push(status);
     }
-    query += ' ORDER BY created_at DESC LIMIT ?';
+    query += ' ORDER BY j.created_at DESC LIMIT ?';
     params.push(limit);
 
     const jobs = db.prepare(query).all(...params);
@@ -29,10 +33,10 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { skillId, triggerType, input, userId, runNow } = body;
+    const { routineId, triggerType, input, userId, runNow } = body;
 
     const jobId = await enqueueJob(
-      skillId || null,
+      routineId || null,
       triggerType || 'manual',
       input || {},
       userId || 'user_default'

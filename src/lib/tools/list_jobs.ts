@@ -3,7 +3,8 @@ import { getDb } from '../db';
 
 export function listJobsForAgent(limit = 10): Array<{
   id: string;
-  skillName: string | null;
+  routineName: string | null;
+  toolName: string | null;
   status: string;
   triggerType: string;
   createdAt: string;
@@ -11,14 +12,15 @@ export function listJobsForAgent(limit = 10): Array<{
 }> {
   const db = getDb();
   const rows = db.prepare(`
-    SELECT j.id, sk.name as skill_name, j.status, j.trigger_type, j.created_at, j.completed_at
+    SELECT j.id, r.name as routine_name, j.tool_name, j.status, j.trigger_type, j.created_at, j.completed_at
     FROM jobs j
-    LEFT JOIN skills sk ON sk.id = j.skill_id
+    LEFT JOIN routines r ON r.id = j.routine_id
     ORDER BY j.created_at DESC
     LIMIT ?
   `).all(limit) as Array<{
     id: string;
-    skill_name: string | null;
+    routine_name: string | null;
+    tool_name: string | null;
     status: string;
     trigger_type: string;
     created_at: string;
@@ -27,7 +29,8 @@ export function listJobsForAgent(limit = 10): Array<{
 
   return rows.map(r => ({
     id: r.id,
-    skillName: r.skill_name,
+    routineName: r.routine_name,
+    toolName: r.tool_name,
     status: r.status,
     triggerType: r.trigger_type,
     createdAt: r.created_at,

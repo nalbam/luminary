@@ -1,16 +1,32 @@
-// src/lib/tools/list_skills.ts
+// src/lib/tools/list_skills.ts — integration modules (Telegram, Slack, etc.)
 import { getDb } from '../db';
 
-export function listSkillsForAgent(): Array<{ id: string; name: string; goal: string; triggerType: string }> {
+export function listSkillsForAgent(): Array<{
+  id: string;
+  name: string;
+  type: string;
+  status: string;
+  enabled: boolean;
+  lastTestedAt: string | null;
+}> {
   const db = getDb();
   const rows = db.prepare(
-    `SELECT id, name, goal, trigger_type FROM skills WHERE enabled = 1 ORDER BY name ASC`
-  ).all() as Array<{ id: string; name: string; goal: string; trigger_type: string }>;
+    `SELECT id, name, type, status, enabled, last_tested_at FROM skills ORDER BY name ASC`
+  ).all() as Array<{
+    id: string;
+    name: string;
+    type: string;
+    status: string;
+    enabled: number;
+    last_tested_at: string | null;
+  }>;
 
   return rows.map(r => ({
     id: r.id,
     name: r.name,
-    goal: r.goal,
-    triggerType: r.trigger_type,
+    type: r.type,
+    status: r.status,
+    enabled: r.enabled === 1,
+    lastTestedAt: r.last_tested_at,
   }));
 }

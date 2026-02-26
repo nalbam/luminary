@@ -1,7 +1,7 @@
 import { getDb } from '../db';
 import { v4 as uuidv4 } from 'uuid';
 import { getTool } from '../tools/registry';
-import { planSkill } from '../skills/planner';
+import { planRoutine } from '../skills/planner';
 import { writeNote } from '../memory/notes';
 
 // Ensure tools are registered
@@ -13,7 +13,7 @@ import '../tools/bash';
 import '../tools/fetch_url';
 
 export async function enqueueJob(
-  skillId: string | null,
+  routineId: string | null,
   triggerType: string,
   input: Record<string, unknown>,
   userId?: string
@@ -23,9 +23,9 @@ export async function enqueueJob(
   const now = new Date().toISOString();
 
   db.prepare(`
-    INSERT INTO jobs (id, skill_id, trigger_type, status, input, user_id, created_at)
+    INSERT INTO jobs (id, routine_id, trigger_type, status, input, user_id, created_at)
     VALUES (?, ?, ?, 'queued', ?, ?, ?)
-  `).run(id, skillId || null, triggerType, JSON.stringify(input), userId || 'user_default', now);
+  `).run(id, routineId || null, triggerType, JSON.stringify(input), userId || 'user_default', now);
 
   return id;
 }
@@ -45,23 +45,25 @@ export async function runJob(jobId: string): Promise<void> {
     const userId = (job.user_id as string) || 'user_default';
     let result: unknown;
 
-    if (job.skill_id) {
-      const skill = db.prepare('SELECT * FROM skills WHERE id = ?').get(job.skill_id as string) as Record<string, unknown> | undefined;
-      if (!skill) throw new Error(`Skill ${job.skill_id} not found`);
+    if (job.routine_id) {
+      // Routine-based execution (LLM-planned multi-step)
+      const routine = db.prepare('SELECT * FROM routines WHERE id = ?').get(job.routine_id as string) as Record<string, unknown> | undefined;
+      if (!routine) throw new Error(`Routine ${job.routine_id} not found`);
 
-      const tools = JSON.parse((skill.tools as string) || '[]');
-      const plan = await planSkill(
-        skill.name as string,
-        skill.goal as string,
+      const tools = JSON.parse((routine.tools as string) || '[]');
+      const plan = await planRoutine(
+        routine.name as string,
+        routine.goal as string,
         tools,
         input
       );
 
       if (!plan.success) {
-        throw new Error(`Skill planning failed for "${skill.name}": ${plan.reasoning}`);
+        throw new Error(`Routine planning failed for "${routine.name}": ${plan.reasoning}`);
       }
 
       const stepResults: unknown[] = [];
+      let allFailed = true;
       for (const step of plan.steps) {
         const stepId = uuidv4();
         const stepStart = new Date().toISOString();
@@ -86,6 +88,7 @@ export async function runJob(jobId: string): Promise<void> {
               stepId
             );
           stepResults.push(toolResult.output);
+          allFailed = false;
         } catch (e) {
           const errMsg = String(e);
           db.prepare('UPDATE step_runs SET error = ?, completed_at = ? WHERE id = ?')
@@ -94,19 +97,50 @@ export async function runJob(jobId: string): Promise<void> {
         }
       }
 
+      if (allFailed && plan.steps.length > 0) {
+        throw new Error(`All steps failed for routine "${routine.name}"`);
+      }
+
       result = { plan: plan.reasoning, steps: stepResults };
 
       // Write summary note
       writeNote({
         kind: 'summary',
-        content: `Completed job for skill "${skill.name}": ${plan.reasoning}`,
+        content: `Completed job for routine "${routine.name}": ${plan.reasoning}`,
         userId,
         jobId,
         stability: 'volatile',
         ttlDays: 7,
       });
+    } else if (job.tool_name) {
+      // Direct tool_call execution (no LLM plan)
+      const toolName = job.tool_name as string;
+      const tool = getTool(toolName);
+      if (!tool) {
+        throw new Error(`Tool "${toolName}" not found`);
+      }
+
+      const toolInput = JSON.parse((job.tool_input as string) || '{}');
+      const stepId = uuidv4();
+      const stepStart = new Date().toISOString();
+
+      db.prepare(`
+        INSERT INTO step_runs (id, job_id, tool_name, input, started_at)
+        VALUES (?, ?, ?, ?, ?)
+      `).run(stepId, jobId, toolName, JSON.stringify(toolInput), stepStart);
+
+      const toolResult = await tool.run(toolInput, { userId, jobId });
+      db.prepare('UPDATE step_runs SET output = ?, artifact_path = ?, completed_at = ? WHERE id = ?')
+        .run(
+          JSON.stringify(toolResult.output),
+          toolResult.artifactPath || null,
+          new Date().toISOString(),
+          stepId
+        );
+
+      result = { channel: 'direct', output: toolResult.output };
     } else {
-      result = { message: 'Job completed (no skill)' };
+      result = { message: 'Job completed (no routine or tool)' };
     }
 
     db.prepare('UPDATE jobs SET status = ?, result = ?, completed_at = ? WHERE id = ?')

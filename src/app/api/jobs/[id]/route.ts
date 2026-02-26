@@ -31,6 +31,17 @@ export async function PATCH(
     const { action } = body;
 
     if (action === 'run') {
+      const db = getDb();
+      const job = db.prepare('SELECT id, status FROM jobs WHERE id = ?').get(id) as { id: string; status: string } | undefined;
+      if (!job) {
+        return NextResponse.json({ error: 'Job not found' }, { status: 404 });
+      }
+      if (!['queued', 'failed'].includes(job.status)) {
+        return NextResponse.json(
+          { error: `Cannot run job in status "${job.status}". Only queued or failed jobs can be run.` },
+          { status: 409 }
+        );
+      }
       runJob(id).catch(e => console.error('Job run error:', e));
       return NextResponse.json({ message: 'Job started' });
     }

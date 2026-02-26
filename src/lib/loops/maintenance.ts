@@ -36,25 +36,35 @@ export async function runMaintenance(): Promise<{
   const pruned = pruneExpired();
   console.log(`Pruned ${pruned} expired notes`);
 
-  // Find volatile notes older than 7 days and synthesize them
-  const volatileNotes = getNotes({ limit: 100 })
+  // Find volatile notes older than 7 days and synthesize them, grouped by userId
+  const allVolatileNotes = getNotes({ limit: 200 })
     .filter(n => n.stability === 'volatile' && !n.supersededBy);
 
   const sevenDaysAgo = new Date();
   sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
-  const oldVolatile = volatileNotes.filter(n =>
+  const oldVolatile = allVolatileNotes.filter(n =>
     new Date(n.createdAt) < sevenDaysAgo
   );
 
+  // Group by userId so notes from different users are never mixed
+  const notesByUser = new Map<string, typeof oldVolatile>();
+  for (const note of oldVolatile) {
+    const uid = note.userId || 'user_default';
+    if (!notesByUser.has(uid)) notesByUser.set(uid, []);
+    notesByUser.get(uid)!.push(note);
+  }
+
   let merged = 0;
-  if (oldVolatile.length >= 3) {
-    const db = getDb();
-    const stmt = db.prepare('UPDATE memory_notes SET superseded_by = ? WHERE id = ?');
+  const db = getDb();
+  const stmt = db.prepare('UPDATE memory_notes SET superseded_by = ? WHERE id = ?');
+
+  for (const [, userNotes] of notesByUser) {
+    if (userNotes.length < 3) continue;
 
     // Synthesize in batches of 5
-    for (let i = 0; i < oldVolatile.length; i += 5) {
-      const batch = oldVolatile.slice(i, i + 5);
+    for (let i = 0; i < userNotes.length; i += 5) {
+      const batch = userNotes.slice(i, i + 5);
       if (batch.length < 2) continue;
 
       // Use LLM to synthesize contents into a meaningful summary

@@ -9,6 +9,7 @@ export interface ToolCall {
 }
 
 export interface Plan {
+  success: boolean;
   steps: ToolCall[];
   reasoning: string;
 }
@@ -23,7 +24,7 @@ export async function planSkill(
   try {
     llm = getClient();
   } catch (e) {
-    return { steps: [], reasoning: `LLM not configured: ${String(e)}` };
+    return { success: false, steps: [], reasoning: `LLM not configured: ${String(e)}` };
   }
 
   // If no specific tools are specified, allow all registered tools
@@ -52,7 +53,7 @@ Respond with ONLY a valid JSON object — no markdown, no explanation:
     });
 
     if (response.type !== 'text') {
-      return { steps: [], reasoning: 'Unexpected tool_call response from planner LLM' };
+      return { success: false, steps: [], reasoning: 'Unexpected tool_call response from planner LLM' };
     }
 
     // Strip possible markdown code fences (``` or ```json)
@@ -63,12 +64,14 @@ Respond with ONLY a valid JSON object — no markdown, no explanation:
       .trim();
 
     const result = JSON.parse(jsonStr) as { steps?: ToolCall[]; reasoning?: string };
+    const steps = Array.isArray(result.steps) ? result.steps : [];
     return {
-      steps: Array.isArray(result.steps) ? result.steps : [],
+      success: steps.length > 0,
+      steps,
       reasoning: result.reasoning || '',
     };
   } catch (e) {
     console.error('Planner error:', e);
-    return { steps: [], reasoning: `Error: ${String(e)}` };
+    return { success: false, steps: [], reasoning: `Error: ${String(e)}` };
   }
 }

@@ -2,6 +2,18 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Agent Execution Philosophy
+
+이 프로젝트는 **생각하고(Think)**, **기억하고(Remember)**, **직접 실행하는(Execute)** 자율 AI Agent이다.
+
+사용자의 요청 혹은 에이전트가 해야 하는 일에 목적을 분석하고, 계획을 세우고, 근본적인 해결 방법을 찾아서 직접 실행해야 한다.
+
+1. **의도 분석** — 사용자가 진짜 원하는 게 무엇인가?
+2. **계획 수립** — 어떤 도구를, 어떤 순서로?
+3. **정보 갭 확인** — 부족하면 질문, 충분하면 즉시 실행
+4. **근본 해결** — 증상이 아닌 실제 문제를 완전히 해결
+5. **실행** — 설명하지 말고, 한다
+
 ## Commands
 
 ```bash

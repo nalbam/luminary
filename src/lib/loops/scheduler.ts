@@ -4,7 +4,12 @@ import { enqueueJob, runJob } from '../jobs/runner';
 import cron from 'node-cron';
 
 let schedulerStarted = false;
-const registeredTasks = new Map<string, ReturnType<typeof cron.schedule>>();
+
+interface RegisteredTask {
+  task: ReturnType<typeof cron.schedule>;
+  cronExpr: string;
+}
+const registeredTasks = new Map<string, RegisteredTask>();
 
 interface ScheduleRow {
   id: string;
@@ -22,16 +27,22 @@ function syncSchedules(): void {
     const enabledIds = new Set(enabled.map(s => s.id));
 
     // Remove tasks for disabled/deleted schedules
-    for (const [id, task] of registeredTasks) {
+    for (const [id, { task }] of registeredTasks) {
       if (!enabledIds.has(id)) {
         task.stop();
         registeredTasks.delete(id);
       }
     }
 
-    // Register new schedules
+    // Register new schedules (or re-register if cron_expr changed)
     for (const schedule of enabled) {
-      if (registeredTasks.has(schedule.id)) continue;
+      const existing = registeredTasks.get(schedule.id);
+      if (existing) {
+        if (existing.cronExpr === schedule.cron_expr) continue; // No change
+        // Expression changed — stop old task and re-register
+        existing.task.stop();
+        registeredTasks.delete(schedule.id);
+      }
 
       if (!cron.validate(schedule.cron_expr)) {
         console.warn(`Scheduler: invalid cron "${schedule.cron_expr}" for schedule ${schedule.id} — skipping`);
@@ -41,8 +52,8 @@ function syncSchedules(): void {
       const task = cron.schedule(schedule.cron_expr, async () => {
         console.log(`Triggering scheduled job for skill ${schedule.skill_id}`);
         try {
-          const db2 = getDb();
-          db2.prepare('UPDATE schedules SET last_run_at = ? WHERE id = ?')
+          const db = getDb();
+          db.prepare('UPDATE schedules SET last_run_at = ? WHERE id = ?')
             .run(new Date().toISOString(), schedule.id);
           const jobId = await enqueueJob(schedule.skill_id, 'schedule', {}, undefined);
           runJob(jobId).catch(e => console.error('Scheduled job error:', e));
@@ -51,7 +62,7 @@ function syncSchedules(): void {
         }
       }, { timezone: 'UTC' });
 
-      registeredTasks.set(schedule.id, task);
+      registeredTasks.set(schedule.id, { task, cronExpr: schedule.cron_expr });
       console.log(`Registered schedule ${schedule.id} (${schedule.cron_expr})`);
     }
   } catch (e) {

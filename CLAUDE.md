@@ -36,7 +36,7 @@ This is a **Next.js 14+ App Router** application implementing an autonomous AI a
 | Scheduler | `scheduler.ts` | Server start (`instrumentation.ts`) → `setInterval` every 60s, polls `schedules` table |
 | Maintenance | `maintenance.ts` | Server start + every 6h (`instrumentation.ts`), also HTTP POST `/api/maintenance` |
 
-The scheduler and maintenance loops are bootstrapped by `src/instrumentation.ts` (Next.js server instrumentation hook), which runs once when the Node.js server starts. The scheduler uses a simplified cron parser (`parseCronInterval`) that only supports `*/N`, `0 * * * *`, and `0 0 * * *` patterns. Full cron expressions are not supported.
+The scheduler and maintenance loops are bootstrapped by `src/instrumentation.ts` (Next.js server instrumentation hook), which runs once when the Node.js server starts. The scheduler uses `node-cron` to register individual cron tasks per schedule row. All standard 5-field cron expressions are supported (UTC timezone). `syncSchedules()` polls the DB every 60 s to pick up newly created or modified schedules.
 
 ### Agentic Loop (Chat)
 

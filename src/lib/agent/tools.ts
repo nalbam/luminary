@@ -52,10 +52,29 @@ agentTools.push({
         kind: { type: 'string', enum: ['log', 'summary', 'rule', 'soul'] },
         tags: { type: 'array', items: { type: 'string' } },
         limit: { type: 'number', description: 'Max results (default 10)' },
+        query: { type: 'string', description: 'Natural language query for semantic search (requires OPENAI_API_KEY and sqlite-vec). Returns the most semantically similar notes.' },
       },
     },
   },
   async execute(input, ctx) {
+    // Semantic search path: use vector similarity if query provided
+    if (input.query && typeof input.query === 'string' && process.env.OPENAI_API_KEY) {
+      try {
+        const { getEmbedding, searchSimilar } = await import('../memory/embeddings');
+        const { getNoteById } = await import('../memory/notes');
+        const queryVec = await getEmbedding(input.query);
+        const noteIds = await searchSimilar(queryVec, (input.limit as number) || 10);
+        if (noteIds.length > 0) {
+          const notes = noteIds
+            .map(id => getNoteById(id))
+            .filter((n): n is NonNullable<typeof n> => n !== null && !n.supersededBy);
+          if (notes.length > 0) return notes;
+        }
+      } catch {
+        // Fall through to keyword search if semantic search fails
+      }
+    }
+
     return getNotes({
       userId: ctx.userId,
       kind: input.kind as NoteKind | undefined,

@@ -15,6 +15,9 @@ export function getDb(): Database.Database {
   const dbPath = path.join(dataDir, 'vibemon.db');
   db = new Database(dbPath);
 
+  // Enable WAL mode for better performance
+  db.pragma('journal_mode = WAL');
+
   // Try to load sqlite-vec
   try {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -121,8 +124,12 @@ export function getDb(): Database.Database {
     `);
   }
 
-  // Enable WAL mode for better performance
-  db.pragma('journal_mode = WAL');
+  // Create vector table if sqlite-vec extension is available
+  try {
+    db.exec(`CREATE VIRTUAL TABLE IF NOT EXISTS vec_notes USING vec0(embedding float[1536])`);
+  } catch {
+    // sqlite-vec not loaded — vector search unavailable, gracefully disabled
+  }
 
   // Cleanup: remove superseded soul notes (legacy records from before in-place update)
   db.exec(`DELETE FROM memory_notes WHERE kind = 'soul' AND superseded_by IS NOT NULL`);

@@ -41,8 +41,11 @@ export async function planRoutine(
 Available tools:
 ${toolDescriptions}
 
-IMPORTANT: Only use tools from the list above. Do NOT invent tool names.
-Commands must complete within 30 seconds — use quick one-liners, not long-running processes.
+Rules:
+- You MUST only use tool names from the list above. Never invent new tool names.
+- For run_bash: commands must complete within 30 seconds. Use quick one-liner commands (e.g. "ps aux | awk '{sum+=$3}END{print sum\"%\"}'", "free -m | awk 'NR==2{print $3/$2*100\"%\"}'"). Never use sleep, cron, or commands that block.
+- Keep plans simple: 1-3 steps maximum. Prefer direct tool calls over multi-step pipelines.
+- When the goal contains "알려줘", "알림", "notify", "alert", "send", "tell": MUST use notify tool to deliver the message. Do NOT use remember for notifications.
 
 Respond with ONLY a valid JSON object — no markdown, no explanation:
 {"reasoning": "<brief explanation>", "steps": [{"toolName": "web_search", "input": {"query": "example search"}}]}`;
@@ -66,22 +69,35 @@ Respond with ONLY a valid JSON object — no markdown, no explanation:
       .replace(/\s*```$/, '')
       .trim();
 
-    const result = JSON.parse(jsonStr) as { steps?: ToolCall[]; reasoning?: string };
-    const steps = Array.isArray(result.steps) ? result.steps : [];
+    // Attempt to parse; on failure, log the raw LLM output for debugging.
+    let result: { steps?: ToolCall[]; reasoning?: string };
+    try {
+      result = JSON.parse(jsonStr) as { steps?: ToolCall[]; reasoning?: string };
+    } catch (parseErr) {
+      console.error('Planner JSON parse error. Raw LLM output:', jsonStr.slice(0, 500));
+      return { success: false, steps: [], reasoning: `Planner returned invalid JSON: ${String(parseErr)}` };
+    }
+    const rawSteps = Array.isArray(result.steps) ? result.steps : [];
 
-    // Validate: filter out steps with unregistered tools
-    const registeredNames = new Set(availableTools.map(t => t.name));
-    const validSteps = steps.filter(s => {
-      if (!registeredNames.has(s.toolName)) {
-        console.warn(`Planner: tool "${s.toolName}" not registered — dropping step`);
-        return false;
-      }
-      return true;
-    });
+    // Validate that each step references a tool that actually exists in the registry.
+    // The LLM sometimes hallucinates tool names (e.g. "use_top_command") that look
+    // plausible but are not registered. Catching this here prevents ghost step_runs.
+    const availableToolNames = new Set(availableTools.map(t => t.name));
+    const unknownTools = rawSteps
+      .map(s => s.toolName)
+      .filter(name => !availableToolNames.has(name));
+
+    if (unknownTools.length > 0) {
+      return {
+        success: false,
+        steps: [],
+        reasoning: `Plan contains unregistered tools: ${unknownTools.join(', ')}. Available: ${[...availableToolNames].join(', ')}`,
+      };
+    }
 
     return {
-      success: validSteps.length > 0,
-      steps: validSteps,
+      success: rawSteps.length > 0,
+      steps: rawSteps,
       reasoning: result.reasoning || '',
     };
   } catch (e) {

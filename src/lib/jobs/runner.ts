@@ -11,6 +11,7 @@ import '../tools/search';
 import '../tools/list_memory';
 import '../tools/bash';
 import '../tools/fetch_url';
+import '../tools/notify';
 
 export async function enqueueJob(
   routineId: string | null,
@@ -63,7 +64,6 @@ export async function runJob(jobId: string): Promise<void> {
       }
 
       const stepResults: unknown[] = [];
-      let allFailed = true;
       for (const step of plan.steps) {
         const stepId = uuidv4();
         const stepStart = new Date().toISOString();
@@ -88,7 +88,6 @@ export async function runJob(jobId: string): Promise<void> {
               stepId
             );
           stepResults.push(toolResult.output);
-          allFailed = false;
         } catch (e) {
           const errMsg = String(e);
           db.prepare('UPDATE step_runs SET error = ?, completed_at = ? WHERE id = ?')
@@ -97,11 +96,22 @@ export async function runJob(jobId: string): Promise<void> {
         }
       }
 
-      if (allFailed && plan.steps.length > 0) {
-        throw new Error(`All steps failed for routine "${routine.name}"`);
-      }
-
       result = { plan: plan.reasoning, steps: stepResults };
+
+      // If every step ended in an error, treat the job as failed rather than succeeded.
+      const allFailed =
+        stepResults.length > 0 &&
+        stepResults.every(
+          s => s !== null && typeof s === 'object' && 'error' in (s as object)
+        );
+      if (allFailed) {
+        const errors = (stepResults as Array<{ error: string }>).map(s => s.error).join('; ');
+        const errMsg = `All steps failed: ${errors}`;
+        console.error(`Job ${jobId} all steps failed:`, errors);
+        db.prepare('UPDATE jobs SET status = ?, result = ?, error = ?, completed_at = ? WHERE id = ?')
+          .run('failed', JSON.stringify(result), errMsg, new Date().toISOString(), jobId);
+        return;
+      }
 
       // Write summary note
       writeNote({

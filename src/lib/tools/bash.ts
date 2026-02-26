@@ -53,7 +53,7 @@ export async function runBash(
 }
 
 registerTool({
-  name: 'bash',
+  name: 'run_bash',
   description: 'Execute a shell command and return stdout, stderr, and exit code. Use for file operations, running scripts, or any system-level task.',
   inputSchema: {
     type: 'object',

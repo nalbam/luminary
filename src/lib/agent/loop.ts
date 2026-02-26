@@ -14,6 +14,26 @@ import { appendEvent } from '../events/store';
 import type { ConversationMessage } from '../llm/types';
 
 const MAX_ITERATIONS = 10;
+const MAX_LLM_RETRIES = 3;
+
+/** Returns true for errors that are worth retrying (rate limit, server overload, network). */
+function isRetryable(e: unknown): boolean {
+  const msg = String(e).toLowerCase();
+  return (
+    msg.includes('rate limit') ||
+    msg.includes('429') ||
+    msg.includes('503') ||
+    msg.includes('529') ||
+    msg.includes('overload') ||
+    msg.includes('timeout') ||
+    msg.includes('econnreset') ||
+    msg.includes('econnrefused')
+  );
+}
+
+async function sleep(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
 
 export async function runAgentLoop(
   message: string,
@@ -49,10 +69,25 @@ export async function runAgentLoop(
     iterations++;
 
     let response;
-    try {
-      response = await llm.complete({ system: systemPrompt, messages: history, tools });
-    } catch (e) {
-      const errMsg = `LLM error: ${String(e)}`;
+    let lastError: unknown;
+    for (let attempt = 1; attempt <= MAX_LLM_RETRIES; attempt++) {
+      try {
+        response = await llm.complete({ system: systemPrompt, messages: history, tools });
+        lastError = undefined;
+        break;
+      } catch (e) {
+        lastError = e;
+        if (attempt < MAX_LLM_RETRIES && isRetryable(e)) {
+          const delayMs = 1000 * Math.pow(2, attempt - 1); // 1s, 2s, 4s
+          console.warn(`LLM error (attempt ${attempt}/${MAX_LLM_RETRIES}), retrying in ${delayMs}ms:`, String(e));
+          await sleep(delayMs);
+        } else {
+          break;
+        }
+      }
+    }
+    if (lastError !== undefined || !response) {
+      const errMsg = `LLM error: ${String(lastError)}`;
       console.error(errMsg);
       return { response: errMsg };
     }

@@ -63,6 +63,12 @@ Complete every task end-to-end — not just the first step.
 - When you need information, search for it with web_search or fetch_url.
 - When you need to run a shell command, use run_bash.
 
+- **"알려줘", "notify me", "send me", "tell me" = send a real message.**
+  In an interactive chat, your text response IS the message — reply directly.
+  In a background routine/job, use the notify tool to deliver the message:
+  Telegram → Slack → Memory log (fallback). Never just remember a note when
+  the user asked to be notified.
+
 ### SCHEDULED or RECURRING tasks (e.g. "every hour", "daily", "5분마다", "매일")
 Two approaches depending on complexity:
 

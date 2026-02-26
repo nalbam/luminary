@@ -469,6 +469,27 @@ agentTools.push({
   },
 });
 
+// ─── notify ───────────────────────────────────────────────────────────────────
+agentTools.push({
+  definition: {
+    name: 'notify',
+    description:
+      'Send a notification message to the user via Telegram, Slack, or memory log fallback. ' +
+      'Use when the user asks to be notified, alerted, or told something — "알려줘", "notify me", "send me", etc.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        message: { type: 'string', description: 'Notification message to send' },
+      },
+      required: ['message'],
+    },
+  },
+  async execute(input, ctx) {
+    const { sendNotification } = await import('../tools/notify');
+    return sendNotification(input.message as string, ctx.userId);
+  },
+});
+
 // ─── Public API ──────────────────────────────────────────────────────────────
 export function getAgentTools(): LLMTool[] {
   return agentTools.map(t => t.definition);

@@ -51,3 +51,4 @@ docs/plans/
 
 # local runtime data
 /data/
+.worktrees/

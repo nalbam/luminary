@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ensureUserExists, getUser, updateUser } from '@/lib/memory/users';
-import { applyAgentSoul, ensureSoulExists } from '@/lib/agent/soul';
+import { applyAgentNote, applyUserNote, ensureIdentityExists } from '@/lib/agent/soul';
 
 // GET /api/users/:id
 export async function GET(
@@ -10,8 +10,8 @@ export async function GET(
   try {
     const { id } = await params;
     const user = ensureUserExists(id);
-    // Ensure soul exists on every page load — recreates if accidentally deleted
-    ensureSoulExists(id);
+    // Ensure all identity notes exist on every page load
+    ensureIdentityExists(id);
     return NextResponse.json({ user });
   } catch (e: unknown) {
     console.error('Users API error:', e);
@@ -50,9 +50,12 @@ export async function PATCH(
         : undefined,
     });
 
-    // If agent config provided, personalize the soul note
-    if (body.agent && user) {
-      applyAgentSoul(id, body.agent, user.preferredName);
+    // Sync agent and user identity notes after settings save
+    if (user) {
+      if (body.agent) {
+        applyAgentNote(id, body.agent, user.preferredName);
+      }
+      applyUserNote(id, user);
     }
 
     return NextResponse.json({ user });

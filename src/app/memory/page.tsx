@@ -15,10 +15,12 @@ interface Note {
 
 const kindFilters = [
   { value: '', label: 'All', icon: '🧠' },
+  { value: 'agent', label: 'Agent', icon: '🤖' },
   { value: 'soul', label: 'Soul', icon: '✨' },
-  { value: 'log', label: 'Log', icon: '📋' },
-  { value: 'summary', label: 'Summary', icon: '📝' },
+  { value: 'user', label: 'User', icon: '👤' },
   { value: 'rule', label: 'Rule', icon: '⚡' },
+  { value: 'summary', label: 'Summary', icon: '📝' },
+  { value: 'log', label: 'Log', icon: '📋' },
 ];
 
 export default function MemoryPage() {

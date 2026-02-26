@@ -14,10 +14,12 @@ interface MemoryNoteProps {
 }
 
 const kindConfig: Record<string, { icon: string; color: string; bg: string; border: string }> = {
-  log:     { icon: '📋', color: '#67e8f9', bg: 'rgba(34,211,238,0.08)',  border: 'rgba(34,211,238,0.2)' },
-  summary: { icon: '📝', color: '#c4b5fd', bg: 'rgba(139,92,246,0.08)', border: 'rgba(139,92,246,0.2)' },
-  rule:    { icon: '⚡', color: '#fcd34d', bg: 'rgba(245,158,11,0.08)', border: 'rgba(245,158,11,0.2)' },
+  agent:   { icon: '🤖', color: '#34d399', bg: 'rgba(16,185,129,0.08)', border: 'rgba(16,185,129,0.25)' },
   soul:    { icon: '✨', color: '#fb7185', bg: 'rgba(244,63,94,0.08)',   border: 'rgba(244,63,94,0.25)' },
+  user:    { icon: '👤', color: '#60a5fa', bg: 'rgba(59,130,246,0.08)', border: 'rgba(59,130,246,0.25)' },
+  rule:    { icon: '⚡', color: '#fcd34d', bg: 'rgba(245,158,11,0.08)', border: 'rgba(245,158,11,0.2)' },
+  summary: { icon: '📝', color: '#c4b5fd', bg: 'rgba(139,92,246,0.08)', border: 'rgba(139,92,246,0.2)' },
+  log:     { icon: '📋', color: '#67e8f9', bg: 'rgba(34,211,238,0.08)',  border: 'rgba(34,211,238,0.2)' },
 };
 
 const stabilityLabel: Record<string, string> = {

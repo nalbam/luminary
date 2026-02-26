@@ -1,7 +1,7 @@
 import { getDb } from '../db';
 import { v4 as uuidv4 } from 'uuid';
 
-export type NoteKind = 'log' | 'summary' | 'rule' | 'soul';
+export type NoteKind = 'log' | 'summary' | 'rule' | 'soul' | 'agent' | 'user';
 
 export interface MemoryNote {
   id: string;

@@ -2,23 +2,26 @@
 import os from 'os';
 import { getNotes, getNoteById } from '../memory/notes';
 import type { NoteKind, MemoryNote } from '../memory/notes';
-import { getUser } from '../memory/users';
 
 /**
  * Builds the system prompt for the agentic loop.
  *
  * Priority order:
- *   1. Soul notes (identity/principles)
- *   2. User profile (name, timezone, interests)
- *   3. Rule notes — semantically relevant to `message` if provided, else most recent
- *   4. Summary notes — semantically relevant to `message` if provided, else most recent
+ *   1. Agent note  (kind='agent')  — who the agent is: name, personality, style
+ *   2. Soul note   (kind='soul')   — how the agent thinks: 7-step protocol + principles
+ *   3. OS/platform environment
+ *   4. User note   (kind='user')   — who the user is: name, timezone, interests
+ *   5. Rule notes  — semantically relevant to `message` if provided, else most recent
+ *   6. Summary notes — semantically relevant to `message` if provided, else most recent
  *
  * When `message` is provided and OPENAI_API_KEY + sqlite-vec are available,
  * relevant notes are retrieved via vector similarity search so the agent sees
  * the RIGHT memories, not just the newest ones.
  */
 export async function buildAgentContext(userId: string, message?: string): Promise<string> {
-  const soulNotes = getNotes({ userId, kind: 'soul', limit: 5 });
+  const agentNotes = getNotes({ userId, kind: 'agent', limit: 1 });
+  const soulNotes  = getNotes({ userId, kind: 'soul',  limit: 1 });
+  const userNotes  = getNotes({ userId, kind: 'user',  limit: 1 });
 
   // Attempt semantic retrieval when a message is available
   let relevantNoteIds: Set<string> = new Set();
@@ -56,17 +59,22 @@ export async function buildAgentContext(userId: string, message?: string): Promi
     return notes;
   }
 
-  const ruleNotes = loadRelevantNotes('rule', 5, 10);
+  const ruleNotes    = loadRelevantNotes('rule',    5, 10);
   const summaryNotes = loadRelevantNotes('summary', 3, 5);
 
   const parts: string[] = [];
 
-  // Soul first: agent identity/principles
+  // 1. Agent persona: who am I
+  if (agentNotes.length > 0) {
+    parts.push(agentNotes.map(n => n.content).join('\n'));
+  }
+
+  // 2. Soul: how I think (7-step protocol + principles)
   if (soulNotes.length > 0) {
     parts.push(soulNotes.map(n => n.content).join('\n'));
   }
 
-  // System environment: always inject OS/platform so agent uses correct commands
+  // 3. System environment: always inject OS/platform so agent uses correct commands
   const platform = os.platform();
   const platformCommands = platform === 'darwin'
     ? 'macOS/Darwin: use vm_stat, top -l 1, ps aux, df -h, du -sh (NOT free/htop/--max-depth GNU opts)'
@@ -75,27 +83,17 @@ export async function buildAgentContext(userId: string, message?: string): Promi
     : `Platform: ${platform}`;
   parts.push(`## System Environment\nOS: ${platform} (${os.arch()}), Node: ${process.version}\n${platformCommands}`);
 
-  // User profile: who you are talking to
-  const user = getUser(userId);
-  if (user) {
-    const name = user.preferredName || user.displayName;
-    const lines: string[] = ['## User Profile', `Name: ${name}`];
-    if (user.timezone && user.timezone !== 'UTC') {
-      lines.push(`Timezone: ${user.timezone}`);
-    }
-    const interests = user.preferences.interests;
-    if (interests && interests.length > 0) {
-      lines.push(`Interests: ${interests.join(', ')}`);
-    }
-    parts.push(lines.join('\n'));
+  // 4. User profile: who am I talking to
+  if (userNotes.length > 0) {
+    parts.push(userNotes.map(n => n.content).join('\n'));
   }
 
-  // Rules: learned user rules (relevance-prioritized)
+  // 5. Rules: learned user rules (relevance-prioritized)
   if (ruleNotes.length > 0) {
     parts.push('## Rules\n' + ruleNotes.map(n => `- ${n.content}`).join('\n'));
   }
 
-  // Recent context: recent work summaries (relevance-prioritized)
+  // 6. Recent context: recent work summaries (relevance-prioritized)
   if (summaryNotes.length > 0) {
     parts.push('## Recent Context\n' + summaryNotes.map(n => n.content).join('\n\n'));
   }

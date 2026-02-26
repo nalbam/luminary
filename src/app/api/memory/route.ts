@@ -6,9 +6,9 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const userId = searchParams.get('userId') || 'user_default';
     const kindRaw = searchParams.get('kind');
-    const VALID_KINDS = ['log', 'summary', 'rule', 'soul'] as const;
+    const VALID_KINDS = ['log', 'summary', 'rule', 'soul', 'agent', 'user'] as const;
     const kind = VALID_KINDS.includes(kindRaw as typeof VALID_KINDS[number])
-      ? (kindRaw as 'log' | 'summary' | 'rule' | 'soul')
+      ? (kindRaw as 'log' | 'summary' | 'rule' | 'soul' | 'agent' | 'user')
       : null;
     const limit = Math.max(1, Math.min(200, parseInt(searchParams.get('limit') || '50', 10) || 50));
 

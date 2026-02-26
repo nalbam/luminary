@@ -2,6 +2,7 @@
 import { getDb } from '../db';
 import { writeNote } from '../memory/notes';
 import { getUser } from '../memory/users';
+import type { User } from '../memory/users';
 
 export interface AgentConfig {
   name: string;
@@ -15,16 +16,24 @@ export const DEFAULT_AGENT_PERSONALITY =
 export const DEFAULT_AGENT_STYLE =
   'Conversational and warm, but concise. Gets to the point without being curt.';
 
-export function buildSoulContent(agent: AgentConfig, preferredName?: string | null): string {
+// ─── Agent note (kind='agent') ────────────────────────────────────────────────
+// Who the agent is: name, personality, speaking style. User-configurable.
+
+export function buildAgentContent(agent: AgentConfig, preferredName?: string | null): string {
   const userLine = preferredName
     ? `\nYour user's preferred name is "${preferredName}". Address them by this name naturally.`
     : '';
   return `You are ${agent.name} — an autonomous AI Agent that thinks, executes, and remembers.${userLine}
 
 Your personality: ${agent.personality}
-Your speaking style: ${agent.style}
+Your speaking style: ${agent.style}`;
+}
 
-## 7-Step Protocol — Follow this EVERY time:
+// ─── Soul note (kind='soul') ──────────────────────────────────────────────────
+// How the agent thinks: 7-step protocol + principles. System constants.
+
+export function buildSoulContent(): string {
+  return `## 7-Step Protocol — Follow this EVERY time:
 
 ### Step 0: Exit Criteria
 Before doing anything, define what "done" looks like.
@@ -125,7 +134,7 @@ Two approaches depending on complexity:
   list_routines → update_routine or delete_routine (linked schedules + queued jobs also removed)
 
 ### MANAGING SCHEDULES
-  list_schedules → delete_schedule
+  list_schedules → update_schedule or delete_schedule
 
 ### MANAGING JOBS
   list_jobs → cancel_job
@@ -136,70 +145,101 @@ Two approaches depending on complexity:
 - Your soul and rules guide you — and you update them as you grow.`;
 }
 
-const DEFAULT_SOUL = buildSoulContent({
-  name: 'vibemon-agent',
-  personality: DEFAULT_AGENT_PERSONALITY,
-  style: DEFAULT_AGENT_STYLE,
-});
+// ─── User note (kind='user') ──────────────────────────────────────────────────
+// Who the user is: name, timezone, interests. User-configurable.
+
+export function buildUserContent(user: User): string {
+  const name = user.preferredName || user.displayName;
+  const lines: string[] = ['## User Profile', `Name: ${name}`];
+  if (user.timezone && user.timezone !== 'UTC') {
+    lines.push(`Timezone: ${user.timezone}`);
+  }
+  const interests = user.preferences.interests;
+  if (interests && interests.length > 0) {
+    lines.push(`Interests: ${interests.join(', ')}`);
+  }
+  return lines.join('\n');
+}
+
+// ─── Sync helpers ─────────────────────────────────────────────────────────────
+
+function upsertNote(
+  userId: string,
+  kind: 'soul' | 'agent' | 'user',
+  expectedContent: string,
+): void {
+  const db = getDb();
+  const existing = db.prepare(
+    `SELECT id, content FROM memory_notes WHERE kind = ? AND user_id = ? LIMIT 1`
+  ).get(kind, userId) as { id: string; content: string } | undefined;
+
+  if (!existing) {
+    writeNote({ kind, content: expectedContent, userId, stability: 'permanent', sensitivity: 'normal' });
+    console.log(`${kind} note initialized for user:`, userId);
+  } else if (existing.content !== expectedContent) {
+    db.prepare(`UPDATE memory_notes SET content = ?, updated_at = ? WHERE id = ?`)
+      .run(expectedContent, new Date().toISOString(), existing.id);
+    console.log(`${kind} note refreshed for user:`, userId);
+  }
+}
 
 /**
- * Creates or updates the agent's soul note in-place.
- * Soul is a singleton per user — always one record, updated directly.
+ * Sync the agent's persona note from user's agent config.
+ * Called by the users API after a settings save.
+ */
+export function applyAgentNote(
+  userId: string,
+  agent: AgentConfig,
+  preferredName?: string | null,
+): void {
+  upsertNote(userId, 'agent', buildAgentContent(agent, preferredName));
+}
+
+/**
+ * Sync the user profile note from the users table.
+ * Called by the users API after a settings save.
+ */
+export function applyUserNote(userId: string, user: User): void {
+  upsertNote(userId, 'user', buildUserContent(user));
+}
+
+/**
+ * Ensures all three identity notes exist and are up-to-date.
+ * Safe to call on every request. Replaces ensureSoulExists().
+ */
+export function ensureIdentityExists(userId = 'user_default'): void {
+  const user = getUser(userId);
+  const agentConfig = user?.preferences.agent;
+
+  // soul = protocol (same structure for all users)
+  upsertNote(userId, 'soul', buildSoulContent());
+
+  // agent = persona (from user's agent preferences, or defaults)
+  const agentContent = agentConfig?.name
+    ? buildAgentContent(agentConfig, user?.preferredName)
+    : buildAgentContent(
+        { name: 'vibemon-agent', personality: DEFAULT_AGENT_PERSONALITY, style: DEFAULT_AGENT_STYLE },
+        user?.preferredName,
+      );
+  upsertNote(userId, 'agent', agentContent);
+
+  // user = profile (from users table)
+  if (user) {
+    upsertNote(userId, 'user', buildUserContent(user));
+  }
+}
+
+// Backward compat alias
+export const ensureSoulExists = ensureIdentityExists;
+
+/**
+ * @deprecated Use applyAgentNote() instead.
+ * Kept for backward compatibility with the users API.
  */
 export function applyAgentSoul(
   userId: string,
   agent: AgentConfig,
   preferredName?: string | null,
 ): void {
-  const db = getDb();
-  const content = buildSoulContent(agent, preferredName);
-  const now = new Date().toISOString();
-
-  const existing = db.prepare(
-    `SELECT id FROM memory_notes WHERE kind = 'soul' AND user_id = ? LIMIT 1`
-  ).get(userId) as { id: string } | undefined;
-
-  if (existing) {
-    db.prepare(`UPDATE memory_notes SET content = ?, updated_at = ? WHERE id = ?`)
-      .run(content, now, existing.id);
-  } else {
-    writeNote({ kind: 'soul', content, userId, stability: 'permanent', sensitivity: 'normal' });
-  }
-}
-
-/**
- * Ensures the agent's soul is initialized and up-to-date. Safe to call on every request.
- * - If no soul exists: creates one from user's agent config or DEFAULT_SOUL.
- * - If soul exists: compares content against current buildSoulContent() and updates if stale.
- *   This ensures Principles changes propagate to all users on next request.
- * Called by runAgentLoop() before each session and by the users API on page load.
- */
-export function ensureSoulExists(userId = 'user_default'): void {
-  const db = getDb();
-  const existing = db.prepare(
-    `SELECT id, content FROM memory_notes WHERE kind = 'soul' AND user_id = ? LIMIT 1`
-  ).get(userId) as { id: string; content: string } | undefined;
-
-  const user = getUser(userId);
-  const agentConfig = user?.preferences.agent;
-  const expectedContent = agentConfig?.name
-    ? buildSoulContent(agentConfig, user?.preferredName)
-    : DEFAULT_SOUL;
-
-  if (!existing) {
-    writeNote({
-      kind: 'soul',
-      content: expectedContent,
-      userId,
-      stability: 'permanent',
-      sensitivity: 'normal',
-    });
-    console.log('Soul initialized for user:', userId);
-  } else if (existing.content !== expectedContent) {
-    // Soul is stale — update to reflect latest Principles.
-    // Do NOT delete conversations: preserving history is more valuable than resetting context.
-    db.prepare(`UPDATE memory_notes SET content = ?, updated_at = ? WHERE id = ?`)
-      .run(expectedContent, new Date().toISOString(), existing.id);
-    console.log('Soul refreshed for user:', userId);
-  }
+  applyAgentNote(userId, agent, preferredName);
 }

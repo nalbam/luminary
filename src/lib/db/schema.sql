@@ -92,7 +92,7 @@ CREATE TABLE IF NOT EXISTS step_runs (
 -- memory_notes table
 CREATE TABLE IF NOT EXISTS memory_notes (
   id TEXT PRIMARY KEY,
-  kind TEXT NOT NULL CHECK (kind IN ('log','summary','rule','soul')),
+  kind TEXT NOT NULL CHECK (kind IN ('log','summary','rule','soul','agent','user')),
   content TEXT NOT NULL,
   scope TEXT DEFAULT 'user',
   user_id TEXT,

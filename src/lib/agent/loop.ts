@@ -1,7 +1,7 @@
 // src/lib/agent/loop.ts
 import { getClient } from '../llm/client';
 import { buildAgentContext } from './context';
-import { ensureSoulExists } from './soul';
+import { ensureIdentityExists } from './soul';
 import { getAgentTools, executeAgentTool } from './tools';
 import {
   getConversationHistory,
@@ -40,8 +40,8 @@ export async function runAgentLoop(
   message: string,
   userId = 'user_default'
 ): Promise<{ response: string }> {
-  // Soul 초기화 (없으면 기본값 생성)
-  ensureSoulExists(userId);
+  // Identity 초기화 (agent, soul, user 노트 없으면 생성)
+  ensureIdentityExists(userId);
 
   let llm;
   try {

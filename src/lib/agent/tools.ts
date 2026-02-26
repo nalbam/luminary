@@ -49,7 +49,7 @@ agentTools.push({
     inputSchema: {
       type: 'object',
       properties: {
-        kind: { type: 'string', enum: ['log', 'summary', 'rule', 'soul'] },
+        kind: { type: 'string', enum: ['log', 'summary', 'rule', 'soul', 'agent', 'user'] },
         tags: { type: 'array', items: { type: 'string' } },
         limit: { type: 'number', description: 'Max results (default 10)' },
         query: { type: 'string', description: 'Natural language query for semantic search (requires OPENAI_API_KEY and sqlite-vec).' },
@@ -86,7 +86,7 @@ agentTools.push({
 agentTools.push({
   definition: {
     name: 'update_memory',
-    description: 'Update an existing memory note by replacing its content. Cannot update soul notes — use update_soul instead.',
+    description: 'Update an existing memory note by replacing its content. Cannot update soul notes (protocol) — use update_soul instead.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -101,7 +101,7 @@ agentTools.push({
     const existing = getNoteById(input.id as string);
     if (!existing) throw new Error(`Note ${input.id as string} not found`);
     if (existing.userId && existing.userId !== ctx.userId) throw new Error('Cannot update another user\'s note');
-    if (existing.kind === 'soul') throw new Error('Cannot update soul notes with update_memory. Use update_soul instead.');
+    if (existing.kind === 'soul') throw new Error('Cannot update soul (protocol) with update_memory. Use update_soul instead.');
 
     const newNote = writeNote({
       kind: existing.kind,
@@ -122,7 +122,7 @@ agentTools.push({
 agentTools.push({
   definition: {
     name: 'update_soul',
-    description: 'Update your own soul (identity/personality/principles). Use sparingly — only when you learn something fundamental about how you should behave.',
+    description: 'Update the 7-step protocol and operating principles (soul). Use sparingly — only when you learn something fundamental about how you should reason or behave. To change persona (name/personality/style), ask the user to update settings instead.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -151,9 +151,6 @@ agentTools.push({
     });
 
     const newNote = updateSoul();
-    // Clear stale conversation history (older than 3 days) — consistent with ensureSoulExists().
-    const cutoff = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString();
-    db.prepare(`DELETE FROM conversations WHERE user_id = ? AND created_at < ?`).run(ctx.userId, cutoff);
     return { noteId: newNote.id, success: true, message: 'Soul updated' };
   },
 });

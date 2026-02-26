@@ -105,9 +105,12 @@ agentTools.push({
     if (existing.userId && existing.userId !== ctx.userId) {
       throw new Error('Cannot update another user\'s note');
     }
+    if (existing.kind === 'soul') {
+      throw new Error('Cannot update soul notes with update_memory. Use the update_soul tool instead.');
+    }
 
     const newNote = writeNote({
-      kind: existing.kind === 'soul' ? 'rule' : existing.kind,
+      kind: existing.kind,
       content: input.content as string,
       userId: ctx.userId,
       tags: existing.tags,

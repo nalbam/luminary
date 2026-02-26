@@ -133,6 +133,16 @@ export function getDb(): Database.Database {
     // sqlite-vec not loaded — vector search unavailable, gracefully disabled
   }
 
+  // Mapping table for vec_notes rowid (INTEGER) ↔ note_id (UUID)
+  try {
+    db.exec(`CREATE TABLE IF NOT EXISTS vec_note_map (
+      rowid INTEGER PRIMARY KEY AUTOINCREMENT,
+      note_id TEXT UNIQUE NOT NULL
+    )`);
+  } catch {
+    // Ignore if already exists or sqlite-vec not available
+  }
+
   // Cleanup: remove superseded soul notes (legacy records from before in-place update)
   db.exec(`DELETE FROM memory_notes WHERE kind = 'soul' AND superseded_by IS NOT NULL`);
 

@@ -131,7 +131,10 @@ function trimHistory(userId: string): void {
       const hasResult = i + 1 < rows.length && rows[i + 1].role === 'tool_results';
       if (!hasResult) toDelete.push(rows[i].id);
     } else if (rows[i].role === 'tool_results') {
-      const hasPreceding = i > 0 && rows[i - 1].role === 'assistant_tool_calls';
+      // A tool_results row is valid if preceded by assistant_tool_calls OR another tool_results
+      // (multiple tool results can follow a single assistant_tool_calls row)
+      const prevRole = i > 0 ? rows[i - 1].role : null;
+      const hasPreceding = prevRole === 'assistant_tool_calls' || prevRole === 'tool_results';
       if (!hasPreceding) toDelete.push(rows[i].id);
     }
   }

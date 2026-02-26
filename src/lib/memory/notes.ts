@@ -79,7 +79,22 @@ export function writeNote(input: WriteNoteInput): MemoryNote {
     now,
   );
 
-  return getNoteById(id)!;
+  const note = getNoteById(id)!;
+
+  // Async store embedding (fire-and-forget, gracefully degrades without OpenAI key or sqlite-vec)
+  if (note.content && process.env.OPENAI_API_KEY) {
+    setImmediate(async () => {
+      try {
+        const { getEmbedding, storeEmbedding } = await import('./embeddings');
+        const vector = await getEmbedding(note.content);
+        await storeEmbedding(note.id, vector);
+      } catch {
+        // Embeddings are optional — silent fail is intentional
+      }
+    });
+  }
+
+  return note;
 }
 
 export function getNoteById(id: string): MemoryNote | null {

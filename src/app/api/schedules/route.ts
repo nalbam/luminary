@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDb } from '@/lib/db';
 import { v4 as uuidv4 } from 'uuid';
+import { validateCronExpr } from '@/lib/tools/cron-utils';
 
 export async function GET() {
   try {
@@ -21,10 +22,19 @@ export async function POST(request: NextRequest) {
     if (!skillId || !cronExpr) {
       return NextResponse.json({ error: 'skillId and cronExpr are required' }, { status: 400 });
     }
+    if (typeof skillId !== 'string' || typeof cronExpr !== 'string') {
+      return NextResponse.json({ error: 'skillId and cronExpr must be strings' }, { status: 400 });
+    }
 
     const skill = db.prepare('SELECT id FROM skills WHERE id = ?').get(skillId);
     if (!skill) {
       return NextResponse.json({ error: 'Skill not found' }, { status: 404 });
+    }
+
+    try {
+      validateCronExpr(cronExpr);
+    } catch (e) {
+      return NextResponse.json({ error: String(e) }, { status: 400 });
     }
 
     const id = uuidv4();
@@ -33,7 +43,7 @@ export async function POST(request: NextRequest) {
     db.prepare(`
       INSERT INTO schedules (id, skill_id, cron_expr, created_at)
       VALUES (?, ?, ?, ?)
-    `).run(id, skillId, cronExpr, now);
+    `).run(id, skillId, cronExpr.trim(), now);
 
     const schedule = db.prepare('SELECT * FROM schedules WHERE id = ?').get(id);
     return NextResponse.json({ schedule }, { status: 201 });

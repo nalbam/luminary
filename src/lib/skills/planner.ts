@@ -1,4 +1,6 @@
-import OpenAI from 'openai';
+// src/lib/skills/planner.ts
+import { getClient } from '../llm/client';
+import type { LLMClient } from '../llm/types';
 import { listTools } from '../tools/registry';
 
 export interface ToolCall {
@@ -17,50 +19,52 @@ export async function planSkill(
   skillTools: string[],
   jobInput: Record<string, unknown>
 ): Promise<Plan> {
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) {
-    return { steps: [], reasoning: 'OPENAI_API_KEY not set' };
+  let llm: LLMClient;
+  try {
+    llm = getClient();
+  } catch (e) {
+    return { steps: [], reasoning: `LLM not configured: ${String(e)}` };
   }
 
-  const availableTools = listTools().filter(t => 
+  // If no specific tools are specified, allow all registered tools
+  const availableTools = listTools().filter(t =>
     skillTools.length === 0 || skillTools.includes(t.name)
   );
 
-  const toolDescriptions = availableTools.map(t => 
+  const toolDescriptions = availableTools.map(t =>
     `- ${t.name}: ${t.description}`
   ).join('\n');
 
-  const openai = new OpenAI({ apiKey });
+  const systemPrompt = `You are a task planner. Given a skill name, goal, and available tools, create a step-by-step execution plan.
 
-  try {
-    const completion = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
-      messages: [
-        {
-          role: 'system',
-          content: `You are a task planner. Given a skill and available tools, create a plan as a JSON object.
 Available tools:
 ${toolDescriptions}
 
-Respond with JSON in this format:
-{
-  "reasoning": "explanation of the plan",
-  "steps": [
-    {"toolName": "tool_name", "input": {"key": "value"}}
-  ]
-}`,
-        },
-        {
-          role: 'user',
-          content: `Skill: ${skillName}\nGoal: ${skillGoal}\nInput: ${JSON.stringify(jobInput)}`,
-        },
-      ],
-      response_format: { type: 'json_object' },
+Respond with ONLY a valid JSON object — no markdown, no explanation:
+{"reasoning": "<brief explanation>", "steps": [{"toolName": "web_search", "input": {"query": "example search"}}]}`;
+
+  try {
+    const response = await llm.complete({
+      system: systemPrompt,
+      messages: [{ role: 'user', content: `Skill: ${skillName}\nGoal: ${skillGoal}\nInput: ${JSON.stringify(jobInput)}` }],
+      tools: [],
+      maxTokens: 2000,
     });
 
-    const result = JSON.parse(completion.choices[0]?.message?.content || '{}');
+    if (response.type !== 'text') {
+      return { steps: [], reasoning: 'Unexpected tool_call response from planner LLM' };
+    }
+
+    // Strip possible markdown code fences (``` or ```json)
+    const raw = response.text.trim();
+    const jsonStr = raw
+      .replace(/^```(?:json)?\s*/i, '')
+      .replace(/\s*```$/, '')
+      .trim();
+
+    const result = JSON.parse(jsonStr) as { steps?: ToolCall[]; reasoning?: string };
     return {
-      steps: result.steps || [],
+      steps: Array.isArray(result.steps) ? result.steps : [],
       reasoning: result.reasoning || '',
     };
   } catch (e) {

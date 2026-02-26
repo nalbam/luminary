@@ -45,17 +45,36 @@ agentTools.push({
 agentTools.push({
   definition: {
     name: 'list_memory',
-    description: 'Query memory notes. Use to recall past information before answering.',
+    description: 'Query memory notes. Use to recall past information before answering. Pass a natural language "query" for semantic search, or use "kind"/"tags" for filtered lookup.',
     inputSchema: {
       type: 'object',
       properties: {
         kind: { type: 'string', enum: ['log', 'summary', 'rule', 'soul'] },
         tags: { type: 'array', items: { type: 'string' } },
         limit: { type: 'number', description: 'Max results (default 10)' },
+        query: { type: 'string', description: 'Natural language query for semantic search (requires OPENAI_API_KEY and sqlite-vec). Returns the most semantically similar notes.' },
       },
     },
   },
   async execute(input, ctx) {
+    // Semantic search path: use vector similarity if query provided
+    if (input.query && typeof input.query === 'string' && process.env.OPENAI_API_KEY) {
+      try {
+        const { getEmbedding, searchSimilar } = await import('../memory/embeddings');
+        const { getNoteById } = await import('../memory/notes');
+        const queryVec = await getEmbedding(input.query);
+        const noteIds = await searchSimilar(queryVec, (input.limit as number) || 10);
+        if (noteIds.length > 0) {
+          const notes = noteIds
+            .map(id => getNoteById(id))
+            .filter((n): n is NonNullable<typeof n> => n !== null && !n.supersededBy && n.userId === ctx.userId);
+          if (notes.length > 0) return notes;
+        }
+      } catch {
+        // Fall through to keyword search if semantic search fails
+      }
+    }
+
     return getNotes({
       userId: ctx.userId,
       kind: input.kind as NoteKind | undefined,
@@ -69,7 +88,7 @@ agentTools.push({
 agentTools.push({
   definition: {
     name: 'update_memory',
-    description: 'Update an existing memory note by replacing its content. Use to correct, refine, or extend a previously written note. The old note is superseded and a new one is created.',
+    description: 'Update an existing memory note by replacing its content. Use to correct, refine, or extend a previously written note. The old note is superseded and a new one is created. Note: cannot be used to update soul notes — use update_soul instead.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -86,9 +105,12 @@ agentTools.push({
     if (existing.userId && existing.userId !== ctx.userId) {
       throw new Error('Cannot update another user\'s note');
     }
+    if (existing.kind === 'soul') {
+      throw new Error('Cannot update soul notes with update_memory. Use the update_soul tool instead.');
+    }
 
     const newNote = writeNote({
-      kind: existing.kind === 'soul' ? 'rule' : existing.kind,
+      kind: existing.kind,
       content: input.content as string,
       userId: ctx.userId,
       tags: existing.tags,
@@ -274,12 +296,12 @@ agentTools.push({
 agentTools.push({
   definition: {
     name: 'create_schedule',
-    description: 'Create a recurring schedule for a skill. Supported cron patterns: "*/N * * * *" (every N min), "0 * * * *" (hourly), "0 0 * * *" (daily).',
+    description: 'Create a recurring schedule for a skill using standard cron syntax (UTC timezone). Minimum interval: 5 minutes.',
     inputSchema: {
       type: 'object',
       properties: {
         skillId: { type: 'string', description: 'ID of the skill to schedule' },
-        cronExpr: { type: 'string', description: 'Cron expression, e.g. "0 9 * * *" for 9am daily' },
+        cronExpr: { type: 'string', description: 'Standard cron expression (UTC). Examples: "*/15 * * * *" (every 15min), "0 * * * *" (hourly), "0 9 * * *" (daily 9am), "0 9 * * 1" (Mon 9am)' },
       },
       required: ['skillId', 'cronExpr'],
     },

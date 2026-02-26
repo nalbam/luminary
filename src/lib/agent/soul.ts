@@ -138,9 +138,12 @@ export function ensureSoulExists(userId = 'user_default'): void {
     });
     console.log('Soul initialized for user:', userId);
   } else if (existing.content !== expectedContent) {
-    // Soul is stale — update to reflect latest Principles
+    // Soul is stale — update to reflect latest Principles.
+    // Also clear conversation history so the LLM doesn't inherit a stale identity
+    // from previous turns that used the old soul name/personality.
     db.prepare(`UPDATE memory_notes SET content = ?, updated_at = ? WHERE id = ?`)
       .run(expectedContent, new Date().toISOString(), existing.id);
-    console.log('Soul refreshed for user:', userId);
+    db.prepare(`DELETE FROM conversations WHERE user_id = ?`).run(userId);
+    console.log('Soul refreshed for user:', userId, '— conversation history cleared');
   }
 }

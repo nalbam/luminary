@@ -69,6 +69,7 @@ export async function runJob(jobId: string): Promise<void> {
         const tool = getTool(step.toolName);
         if (!tool) {
           const errMsg = `Tool "${step.toolName}" not found`;
+          console.error(`[Job ${jobId}] Step failed: ${errMsg}`);
           db.prepare('UPDATE step_runs SET error = ?, completed_at = ? WHERE id = ?')
             .run(errMsg, new Date().toISOString(), stepId);
           stepResults.push({ error: errMsg });

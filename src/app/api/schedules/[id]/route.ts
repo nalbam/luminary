@@ -19,7 +19,8 @@ export async function GET(
     }
     return NextResponse.json({ schedule });
   } catch (e: unknown) {
-    return NextResponse.json({ error: String(e) }, { status: 500 });
+    console.error('Schedules API error:', e);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
 
@@ -37,6 +38,7 @@ export async function DELETE(
     db.prepare('DELETE FROM schedules WHERE id = ?').run(id);
     return NextResponse.json({ message: 'Schedule deleted' });
   } catch (e: unknown) {
-    return NextResponse.json({ error: String(e) }, { status: 500 });
+    console.error('Schedules API error:', e);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

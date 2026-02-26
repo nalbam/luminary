@@ -7,6 +7,24 @@ const execAsync = promisify(exec);
 const TIMEOUT_MS = 30_000;
 const MAX_OUTPUT = 8_000;
 
+// Sensitive keys stripped from child process environment to prevent credential leakage
+const SENSITIVE_ENV_KEYS = [
+  'OPENAI_API_KEY',
+  'ANTHROPIC_API_KEY',
+  'BRAVE_SEARCH_API_KEY',
+  'AWS_ACCESS_KEY_ID',
+  'AWS_SECRET_ACCESS_KEY',
+  'AWS_SESSION_TOKEN',
+];
+
+function buildSafeEnv(): NodeJS.ProcessEnv {
+  const env = { ...process.env };
+  for (const key of SENSITIVE_ENV_KEYS) {
+    delete env[key];
+  }
+  return env;
+}
+
 export async function runBash(
   command: string,
   timeoutMs = TIMEOUT_MS
@@ -14,7 +32,7 @@ export async function runBash(
   try {
     const { stdout, stderr } = await execAsync(command, {
       timeout: timeoutMs,
-      env: { ...process.env },
+      env: buildSafeEnv(),
       shell: '/bin/sh',
     });
     return {

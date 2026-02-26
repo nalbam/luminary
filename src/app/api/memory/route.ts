@@ -5,8 +5,12 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const userId = searchParams.get('userId') || 'user_default';
-    const kind = searchParams.get('kind') as 'log' | 'summary' | 'rule' | 'soul' | null;
-    const limit = parseInt(searchParams.get('limit') || '50');
+    const kindRaw = searchParams.get('kind');
+    const VALID_KINDS = ['log', 'summary', 'rule', 'soul'] as const;
+    const kind = VALID_KINDS.includes(kindRaw as typeof VALID_KINDS[number])
+      ? (kindRaw as 'log' | 'summary' | 'rule' | 'soul')
+      : null;
+    const limit = Math.max(1, Math.min(200, parseInt(searchParams.get('limit') || '50', 10) || 50));
 
     const notes = getNotes({
       userId,
@@ -16,6 +20,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ notes });
   } catch (e: unknown) {
-    return NextResponse.json({ error: String(e) }, { status: 500 });
+    console.error('Memory API error:', e);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

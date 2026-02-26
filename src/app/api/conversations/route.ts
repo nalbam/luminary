@@ -8,6 +8,6 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ messages });
   } catch (e) {
     console.error('Conversations API error:', e);
-    return NextResponse.json({ messages: [], error: String(e) }, { status: 500 });
+    return NextResponse.json({ messages: [], error: 'Internal server error' }, { status: 500 });
   }
 }

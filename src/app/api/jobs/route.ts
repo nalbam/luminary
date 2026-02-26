@@ -7,7 +7,7 @@ export async function GET(request: NextRequest) {
     const db = getDb();
     const { searchParams } = new URL(request.url);
     const status = searchParams.get('status');
-    const limit = parseInt(searchParams.get('limit') || '50');
+    const limit = Math.max(1, Math.min(200, parseInt(searchParams.get('limit') || '50', 10) || 50));
 
     let query = 'SELECT * FROM jobs';
     const params: unknown[] = [];
@@ -21,7 +21,8 @@ export async function GET(request: NextRequest) {
     const jobs = db.prepare(query).all(...params);
     return NextResponse.json({ jobs });
   } catch (e: unknown) {
-    return NextResponse.json({ error: String(e) }, { status: 500 });
+    console.error('Jobs API error:', e);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
 
@@ -43,6 +44,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ jobId });
   } catch (e: unknown) {
-    return NextResponse.json({ error: String(e) }, { status: 500 });
+    console.error('Jobs API error:', e);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

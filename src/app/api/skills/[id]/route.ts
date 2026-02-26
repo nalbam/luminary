@@ -14,7 +14,8 @@ export async function GET(
     }
     return NextResponse.json({ skill });
   } catch (e: unknown) {
-    return NextResponse.json({ error: String(e) }, { status: 500 });
+    console.error('Skills API error:', e);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
 
@@ -63,7 +64,8 @@ export async function PUT(
     const skill = db.prepare('SELECT * FROM skills WHERE id = ?').get(id);
     return NextResponse.json({ skill });
   } catch (e: unknown) {
-    return NextResponse.json({ error: String(e) }, { status: 500 });
+    console.error('Skills API error:', e);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
 
@@ -82,6 +84,7 @@ export async function DELETE(
     db.prepare('DELETE FROM skills WHERE id = ?').run(id);
     return NextResponse.json({ message: 'Skill deleted' });
   } catch (e: unknown) {
-    return NextResponse.json({ error: String(e) }, { status: 500 });
+    console.error('Skills API error:', e);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

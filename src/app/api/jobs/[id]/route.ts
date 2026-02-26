@@ -17,7 +17,8 @@ export async function GET(
     const steps = db.prepare('SELECT * FROM step_runs WHERE job_id = ? ORDER BY started_at ASC').all(id);
     return NextResponse.json({ job, steps });
   } catch (e: unknown) {
-    return NextResponse.json({ error: String(e) }, { status: 500 });
+    console.error('Jobs API error:', e);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
 
@@ -54,6 +55,7 @@ export async function PATCH(
 
     return NextResponse.json({ error: 'Unknown action' }, { status: 400 });
   } catch (e: unknown) {
-    return NextResponse.json({ error: String(e) }, { status: 500 });
+    console.error('Jobs API error:', e);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

@@ -14,7 +14,8 @@ export async function GET(
     ensureSoulExists(id);
     return NextResponse.json({ user });
   } catch (e: unknown) {
-    return NextResponse.json({ error: String(e) }, { status: 500 });
+    console.error('Users API error:', e);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
 
@@ -56,6 +57,7 @@ export async function PATCH(
 
     return NextResponse.json({ user });
   } catch (e: unknown) {
-    return NextResponse.json({ error: String(e) }, { status: 500 });
+    console.error('Users API error:', e);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

@@ -8,7 +8,8 @@ export async function GET() {
     const skills = db.prepare('SELECT * FROM skills ORDER BY created_at DESC').all();
     return NextResponse.json({ skills });
   } catch (e: unknown) {
-    return NextResponse.json({ error: String(e) }, { status: 500 });
+    console.error('Skills API error:', e);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
 
@@ -41,6 +42,7 @@ export async function POST(request: NextRequest) {
     const skill = db.prepare('SELECT * FROM skills WHERE id = ?').get(id);
     return NextResponse.json({ skill }, { status: 201 });
   } catch (e: unknown) {
-    return NextResponse.json({ error: String(e) }, { status: 500 });
+    console.error('Skills API error:', e);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

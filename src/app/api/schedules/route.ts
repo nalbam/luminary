@@ -9,7 +9,8 @@ export async function GET() {
     const schedules = db.prepare('SELECT * FROM schedules ORDER BY created_at DESC').all();
     return NextResponse.json({ schedules });
   } catch (e: unknown) {
-    return NextResponse.json({ error: String(e) }, { status: 500 });
+    console.error('Schedules API error:', e);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
 
@@ -48,6 +49,7 @@ export async function POST(request: NextRequest) {
     const schedule = db.prepare('SELECT * FROM schedules WHERE id = ?').get(id);
     return NextResponse.json({ schedule }, { status: 201 });
   } catch (e: unknown) {
-    return NextResponse.json({ error: String(e) }, { status: 500 });
+    console.error('Schedules API error:', e);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

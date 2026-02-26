@@ -12,17 +12,19 @@ export async function fetchUrl(url: string, maxLength = 8000): Promise<string> {
     throw new Error(`URL scheme not allowed: ${parsed.protocol}`);
   }
 
-  // Block private/loopback ranges
+  // Block private/loopback ranges (SSRF protection)
   const hostname = parsed.hostname.toLowerCase();
   const BLOCKED = [
     /^localhost$/,
     /^127\./,
+    /^0\.0\.0\.0$/,           // also resolves to loopback on many systems
     /^10\./,
     /^172\.(1[6-9]|2\d|3[01])\./,
     /^192\.168\./,
-    /^169\.254\./,
-    /^::1$/,
-    /^fd[0-9a-f]{2}:/i,
+    /^169\.254\./,            // link-local (AWS metadata: 169.254.169.254)
+    /^::1$/,                  // IPv6 loopback
+    /^fe80:/i,                // IPv6 link-local
+    /^fd[0-9a-f]{2}:/i,       // IPv6 unique local
   ];
   if (BLOCKED.some(re => re.test(hostname))) {
     throw new Error(`URL hostname not allowed (private/loopback): ${hostname}`);

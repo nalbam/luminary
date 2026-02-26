@@ -101,43 +101,47 @@ export interface UpdateUserInput {
 
 /**
  * Updates a user record. Preferences are deep-merged (not replaced).
+ * Wrapped in a transaction to prevent lost-update race conditions.
  */
 export function updateUser(userId: string, updates: UpdateUserInput): User | null {
   const db = getDb();
-  const existing = db.prepare(
-    `SELECT ${SELECT_COLS} FROM users WHERE id = ?`
-  ).get(userId) as UserRow | undefined;
-  if (!existing) return null;
 
-  const currentPrefs: UserPreferences = JSON.parse(existing.preferences || '{}');
-  const mergedPrefs: UserPreferences = {
-    ...currentPrefs,
-    ...(updates.preferences || {}),
-    // deep merge agent sub-object if both exist
-    ...(updates.preferences?.agent && currentPrefs.agent
-      ? { agent: { ...currentPrefs.agent, ...updates.preferences.agent } }
-      : {}),
-  };
+  return db.transaction(() => {
+    const existing = db.prepare(
+      `SELECT ${SELECT_COLS} FROM users WHERE id = ?`
+    ).get(userId) as UserRow | undefined;
+    if (!existing) return null;
 
-  const now = new Date().toISOString();
-  db.prepare(`
-    UPDATE users SET
-      display_name = ?,
-      preferred_name = ?,
-      locale = ?,
-      timezone = ?,
-      preferences = ?,
-      updated_at = ?
-    WHERE id = ?
-  `).run(
-    updates.displayName !== undefined ? updates.displayName : existing.display_name,
-    updates.preferredName !== undefined ? updates.preferredName : existing.preferred_name,
-    updates.locale !== undefined ? updates.locale : existing.locale,
-    updates.timezone !== undefined ? updates.timezone : existing.timezone,
-    JSON.stringify(mergedPrefs),
-    now,
-    userId,
-  );
+    const currentPrefs: UserPreferences = JSON.parse(existing.preferences || '{}');
+    const mergedPrefs: UserPreferences = {
+      ...currentPrefs,
+      ...(updates.preferences || {}),
+      // deep merge agent sub-object if both exist
+      ...(updates.preferences?.agent && currentPrefs.agent
+        ? { agent: { ...currentPrefs.agent, ...updates.preferences.agent } }
+        : {}),
+    };
 
-  return getUser(userId);
+    const now = new Date().toISOString();
+    db.prepare(`
+      UPDATE users SET
+        display_name = ?,
+        preferred_name = ?,
+        locale = ?,
+        timezone = ?,
+        preferences = ?,
+        updated_at = ?
+      WHERE id = ?
+    `).run(
+      updates.displayName !== undefined ? updates.displayName : existing.display_name,
+      updates.preferredName !== undefined ? updates.preferredName : existing.preferred_name,
+      updates.locale !== undefined ? updates.locale : existing.locale,
+      updates.timezone !== undefined ? updates.timezone : existing.timezone,
+      JSON.stringify(mergedPrefs),
+      now,
+      userId,
+    );
+
+    return getUser(userId);
+  })();
 }

@@ -88,8 +88,9 @@ export function writeNote(input: WriteNoteInput): MemoryNote {
         const { getEmbedding, storeEmbedding } = await import('./embeddings');
         const vector = await getEmbedding(note.content);
         await storeEmbedding(note.id, vector);
-      } catch {
-        // Embeddings are optional — silent fail is intentional
+      } catch (e) {
+        // Embeddings are optional — graceful degradation, but log for observability
+        console.debug('Embedding store failed (non-critical):', String(e));
       }
     });
   }

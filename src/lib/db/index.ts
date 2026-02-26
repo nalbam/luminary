@@ -124,7 +124,9 @@ export function getDb(): Database.Database {
     `);
   }
 
-  // Create vector table if sqlite-vec extension is available
+  // NOTE: vec_notes is intentionally NOT in schema.sql — virtual table DDL requires the
+  // sqlite-vec extension to be loaded first. If added to schema.sql, db.exec(schema) would
+  // fail entirely on systems without sqlite-vec. Keep this separate try/catch.
   try {
     db.exec(`CREATE VIRTUAL TABLE IF NOT EXISTS vec_notes USING vec0(embedding float[1536])`);
   } catch {

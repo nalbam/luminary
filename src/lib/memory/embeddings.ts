@@ -1,5 +1,7 @@
 import { getDb } from '../db';
 
+// Note: sqlite-vec's vec0 virtual table supports text rowids (note UUIDs used as rowid).
+// searchSimilar() returns these UUIDs which are then looked up via getNoteById().
 export async function storeEmbedding(noteId: string, vector: number[]): Promise<void> {
   const db = getDb();
   try {
@@ -8,8 +10,8 @@ export async function storeEmbedding(noteId: string, vector: number[]): Promise<
       noteId,
       Buffer.from(new Float32Array(vector).buffer)
     );
-  } catch (e) {
-    console.log('Vector storage not available:', e);
+  } catch {
+    // Silently ignore — sqlite-vec not available or insertion failed
   }
 }
 
@@ -21,8 +23,7 @@ export async function searchSimilar(_queryVector: number[], limit = 5): Promise<
       limit
     ) as Array<{ rowid: string }>;
     return rows.map(r => r.rowid);
-  } catch (e) {
-    console.log('Vector search not available:', e);
+  } catch {
     return [];
   }
 }

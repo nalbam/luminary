@@ -45,7 +45,7 @@ agentTools.push({
 agentTools.push({
   definition: {
     name: 'list_memory',
-    description: 'Query memory notes. Use to recall past information before answering.',
+    description: 'Query memory notes. Use to recall past information before answering. Pass a natural language "query" for semantic search, or use "kind"/"tags" for filtered lookup.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -67,7 +67,7 @@ agentTools.push({
         if (noteIds.length > 0) {
           const notes = noteIds
             .map(id => getNoteById(id))
-            .filter((n): n is NonNullable<typeof n> => n !== null && !n.supersededBy);
+            .filter((n): n is NonNullable<typeof n> => n !== null && !n.supersededBy && n.userId === ctx.userId);
           if (notes.length > 0) return notes;
         }
       } catch {

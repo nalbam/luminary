@@ -1,6 +1,7 @@
 // src/lib/agent/context.ts
 import os from 'os';
 import { getNotes, getNoteById } from '../memory/notes';
+import type { NoteKind, MemoryNote } from '../memory/notes';
 import { getUser } from '../memory/users';
 
 /**
@@ -32,38 +33,31 @@ export async function buildAgentContext(userId: string, message?: string): Promi
     }
   }
 
-  // Load rule notes: prefer semantically relevant, then fill with recent
-  let ruleNotes = relevantNoteIds.size > 0
-    ? [...relevantNoteIds]
-        .map(id => getNoteById(id))
-        .filter((n): n is NonNullable<typeof n> =>
-          n !== null && n.kind === 'rule' && !n.supersededBy &&
-          n.userId === userId && n.sensitivity !== 'sensitive')
-        .slice(0, 10)
-    : [];
+  // Load notes of a given kind: prefer semantically relevant, fill remainder with recent
+  function loadRelevantNotes(
+    kind: NoteKind,
+    minCount: number,
+    maxCount: number,
+  ): MemoryNote[] {
+    let notes: MemoryNote[] = relevantNoteIds.size > 0
+      ? [...relevantNoteIds]
+          .map(id => getNoteById(id))
+          .filter((n): n is MemoryNote =>
+            n !== null && n.kind === kind && !n.supersededBy &&
+            n.userId === userId && n.sensitivity !== 'sensitive')
+          .slice(0, maxCount)
+      : [];
 
-  if (ruleNotes.length < 5) {
-    // Top up with recent rules not already included
-    const recentRules = getNotes({ userId, kind: 'rule', limit: 10 })
-      .filter(n => n.sensitivity !== 'sensitive' && !relevantNoteIds.has(n.id));
-    ruleNotes = [...ruleNotes, ...recentRules].slice(0, 10);
+    if (notes.length < minCount) {
+      const recent = getNotes({ userId, kind, limit: maxCount })
+        .filter(n => n.sensitivity !== 'sensitive' && !relevantNoteIds.has(n.id));
+      notes = [...notes, ...recent].slice(0, maxCount);
+    }
+    return notes;
   }
 
-  // Load summary notes: prefer semantically relevant, then fill with recent
-  let summaryNotes = relevantNoteIds.size > 0
-    ? [...relevantNoteIds]
-        .map(id => getNoteById(id))
-        .filter((n): n is NonNullable<typeof n> =>
-          n !== null && n.kind === 'summary' && !n.supersededBy &&
-          n.userId === userId && n.sensitivity !== 'sensitive')
-        .slice(0, 5)
-    : [];
-
-  if (summaryNotes.length < 3) {
-    const recentSummaries = getNotes({ userId, kind: 'summary', limit: 5 })
-      .filter(n => n.sensitivity !== 'sensitive' && !relevantNoteIds.has(n.id));
-    summaryNotes = [...summaryNotes, ...recentSummaries].slice(0, 5);
-  }
+  const ruleNotes = loadRelevantNotes('rule', 5, 10);
+  const summaryNotes = loadRelevantNotes('summary', 3, 5);
 
   const parts: string[] = [];
 

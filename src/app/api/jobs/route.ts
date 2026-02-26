@@ -14,6 +14,10 @@ export async function GET(request: NextRequest) {
       FROM jobs j
       LEFT JOIN routines r ON r.id = j.routine_id
     `;
+    const VALID_STATUSES = ['queued', 'running', 'succeeded', 'failed', 'canceled'];
+    if (status && !VALID_STATUSES.includes(status)) {
+      return NextResponse.json({ error: 'Invalid status value' }, { status: 400 });
+    }
     const params: unknown[] = [];
     if (status) {
       query += ' WHERE j.status = ?';

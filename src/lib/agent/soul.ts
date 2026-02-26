@@ -197,12 +197,9 @@ export function ensureSoulExists(userId = 'user_default'): void {
     console.log('Soul initialized for user:', userId);
   } else if (existing.content !== expectedContent) {
     // Soul is stale — update to reflect latest Principles.
-    // Preserve recent conversations (last 3 days) for context continuity.
-    // Only remove older history that may carry stale identity context.
+    // Do NOT delete conversations: preserving history is more valuable than resetting context.
     db.prepare(`UPDATE memory_notes SET content = ?, updated_at = ? WHERE id = ?`)
       .run(expectedContent, new Date().toISOString(), existing.id);
-    const cutoff = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString();
-    db.prepare(`DELETE FROM conversations WHERE user_id = ? AND created_at < ?`).run(userId, cutoff);
-    console.log('Soul refreshed for user:', userId, '— conversations older than 3 days cleared');
+    console.log('Soul refreshed for user:', userId);
   }
 }

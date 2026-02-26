@@ -98,10 +98,10 @@ export async function runAgentLoop(
       saveAssistantMessage(userId, response.text);
       appendEvent({ type: 'assistant_message', userId, payload: { message: response.text } });
 
-      // Auto-summary (Step 7: Reflect & Remember): if 2+ tools were executed,
+      // Auto-summary (Step 7: Reflect & Remember): if 1+ tools were executed,
       // write a summary note automatically. This enforces the Remember philosophy
       // without relying on LLM discretion.
-      if (executedTools.length >= 2) {
+      if (executedTools.length >= 1) {
         const toolSummary = executedTools.join(' → ');
         writeNote({
           kind: 'summary',

@@ -32,5 +32,13 @@ export function readEvents(userId: string, date: string): AppEvent[] {
   if (!fs.existsSync(filePath)) return [];
 
   const lines = fs.readFileSync(filePath, 'utf-8').split('\n').filter(Boolean);
-  return lines.map(line => JSON.parse(line) as AppEvent);
+  const events: AppEvent[] = [];
+  for (const line of lines) {
+    try {
+      events.push(JSON.parse(line) as AppEvent);
+    } catch {
+      console.warn(`Malformed JSONL line in ${userId}/${date}, skipping:`, line.slice(0, 100));
+    }
+  }
+  return events;
 }

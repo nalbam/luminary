@@ -237,6 +237,7 @@ graph LR
     Registry --> Tool2[remember]
     Registry --> Tool3[list_memory]
     Registry --> Tool4[web_search]
+    Registry --> Tool5[bash]
     Registry --> ToolN[...]
 ```
 

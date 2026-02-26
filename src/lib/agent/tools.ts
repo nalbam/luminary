@@ -65,6 +65,45 @@ agentTools.push({
   },
 });
 
+// ─── update_memory ────────────────────────────────────────────────────────────
+agentTools.push({
+  definition: {
+    name: 'update_memory',
+    description: 'Update an existing memory note by replacing its content. Use to correct, refine, or extend a previously written note. The old note is superseded and a new one is created.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        id: { type: 'string', description: 'ID of the note to update (from list_memory)' },
+        content: { type: 'string', description: 'New content to replace the existing note' },
+      },
+      required: ['id', 'content'],
+    },
+  },
+  async execute(input, ctx) {
+    const { getNoteById } = await import('../memory/notes');
+    const existing = getNoteById(input.id as string);
+    if (!existing) throw new Error(`Note ${input.id as string} not found`);
+    if (existing.userId && existing.userId !== ctx.userId) {
+      throw new Error('Cannot update another user\'s note');
+    }
+
+    const newNote = writeNote({
+      kind: existing.kind === 'soul' ? 'rule' : existing.kind,
+      content: input.content as string,
+      userId: ctx.userId,
+      tags: existing.tags,
+      stability: existing.stability,
+      ttlDays: existing.ttlDays,
+    });
+
+    const db = getDb();
+    db.prepare(`UPDATE memory_notes SET superseded_by = ? WHERE id = ?`)
+      .run(newNote.id, existing.id);
+
+    return { noteId: newNote.id, success: true, message: 'Note updated' };
+  },
+});
+
 // ─── update_soul ──────────────────────────────────────────────────────────────
 agentTools.push({
   definition: {
@@ -163,6 +202,33 @@ agentTools.push({
   },
 });
 
+// ─── create_skill ─────────────────────────────────────────────────────────────
+agentTools.push({
+  definition: {
+    name: 'create_skill',
+    description: 'Create a new skill (automated task). Use when the user wants to define a new repeatable task. Returns the skillId that can be passed to create_job or create_schedule.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        name: { type: 'string', description: 'Short name for the skill' },
+        goal: { type: 'string', description: 'What the skill should accomplish (used by the planner to generate execution steps)' },
+        triggerType: { type: 'string', enum: ['manual', 'schedule', 'event'], description: 'How the skill is triggered (default: manual)' },
+        tools: { type: 'array', items: { type: 'string' }, description: 'Tool names the skill is allowed to use. Empty array = all tools' },
+      },
+      required: ['name', 'goal'],
+    },
+  },
+  async execute(input) {
+    const { createSkillForAgent } = await import('../tools/create_skill');
+    return createSkillForAgent({
+      name: input.name as string,
+      goal: input.goal as string,
+      triggerType: (input.triggerType as 'manual' | 'schedule' | 'event') || 'manual',
+      tools: (input.tools as string[]) || [],
+    });
+  },
+});
+
 // ─── create_job ───────────────────────────────────────────────────────────────
 agentTools.push({
   definition: {
@@ -180,6 +246,27 @@ agentTools.push({
   async execute(input, ctx) {
     const { createJobForAgent } = await import('../tools/create_job');
     return createJobForAgent(input.skillId as string, (input.input as Record<string, unknown>) || {}, ctx.userId);
+  },
+});
+
+// ─── run_bash ────────────────────────────────────────────────────────────────
+agentTools.push({
+  definition: {
+    name: 'run_bash',
+    description: 'Execute a shell command and return stdout, stderr, and exit code. Use for file operations, running scripts, or any system-level task.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        command: { type: 'string', description: 'Shell command to execute' },
+        timeout: { type: 'number', description: 'Timeout in milliseconds (default 30000)' },
+      },
+      required: ['command'],
+    },
+  },
+  async execute(input) {
+    const { runBash } = await import('../tools/bash');
+    const result = await runBash(input.command as string, (input.timeout as number) || 30000);
+    return result;
   },
 });
 

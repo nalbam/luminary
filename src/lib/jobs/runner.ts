@@ -9,6 +9,7 @@ import '../tools/summarize';
 import '../tools/remember';
 import '../tools/search';
 import '../tools/list_memory';
+import '../tools/bash';
 
 export async function enqueueJob(
   skillId: string | null,

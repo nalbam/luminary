@@ -33,10 +33,10 @@ This is a **Next.js 14+ App Router** application implementing an autonomous AI a
 |------|------|---------|
 | Interactive | `interactive.ts` | HTTP POST `/api/chat` |
 | Job | `runner.ts` | `enqueueJob()` + `runJob()` |
-| Scheduler | `scheduler.ts` | `setInterval` every 60s, polls `schedules` table |
-| Maintenance | `maintenance.ts` | HTTP POST `/api/maintenance` |
+| Scheduler | `scheduler.ts` | Server start (`instrumentation.ts`) → `setInterval` every 60s, polls `schedules` table |
+| Maintenance | `maintenance.ts` | Server start + every 6h (`instrumentation.ts`), also HTTP POST `/api/maintenance` |
 
-The scheduler uses a simplified cron parser (`parseCronInterval`) that only supports `*/N`, `0 * * * *`, and `0 0 * * *` patterns. Full cron expressions are not supported.
+The scheduler and maintenance loops are bootstrapped by `src/instrumentation.ts` (Next.js server instrumentation hook), which runs once when the Node.js server starts. The scheduler uses a simplified cron parser (`parseCronInterval`) that only supports `*/N`, `0 * * * *`, and `0 0 * * *` patterns. Full cron expressions are not supported.
 
 ### Agentic Loop (Chat)
 
@@ -48,7 +48,7 @@ POST /api/chat
     → runAgentLoop (agent/loop.ts)
       → saveUserMessage (memory/conversations.ts)
       → getConversationHistory               # multi-turn history
-      → LLM call with 8 agent tools
+      → LLM call with 11 agent tools
       → if tool_calls → executeAgentTool() → saveToolResults()
       → if text → saveAssistantMessage() → return
       → repeat up to MAX_ITERATIONS (10)
@@ -88,16 +88,19 @@ Both providers implement the same `LLMClient` interface. LLMTool.inputSchema **m
 
 ### Agent Tools (`src/lib/agent/tools.ts`)
 
-8 tools available during chat via the agentic loop:
+11 tools available during chat via the agentic loop:
 
 | Tool | Purpose |
 |------|---------|
 | `remember` | Write a memory note |
 | `list_memory` | Query memory notes |
+| `update_memory` | Update/correct an existing memory note (supersede pattern) |
 | `update_soul` | Update agent identity (soul note) |
 | `web_search` | Search the web (Brave → DuckDuckGo fallback) |
 | `fetch_url` | Fetch a URL (SSRF-protected) |
+| `run_bash` | Execute a shell command (stdout/stderr/exitCode) |
 | `list_skills` | List available skills |
+| `create_skill` | Create a new skill (name, goal, triggerType, tools) |
 | `create_job` | Create and run a skill job |
 | `create_schedule` | Create a cron schedule |
 
@@ -105,7 +108,7 @@ Both providers implement the same `LLMClient` interface. LLMTool.inputSchema **m
 
 Tools implement the `Tool` interface (`registry.ts`): `name`, `description`, `inputSchema`, `run(input, context)`.
 
-Built-in tools (for job execution): `summarize`, `remember`, `list_memory`, `web_search`.
+Built-in tools (for job execution): `summarize`, `remember`, `list_memory`, `web_search`, `bash`.
 
 Register new tools by importing the tool file in `runner.ts` (self-registers via `registerTool()`).
 

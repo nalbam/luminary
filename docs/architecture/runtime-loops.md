@@ -9,8 +9,10 @@ vibemon-agent consists of four independent runtime loops. Each loop has a differ
 ```mermaid
 graph LR
     subgraph Triggers
+        BOOT[Server Start\ninstrumentation.ts]
         HTTP[HTTP Request]
-        TIMER[setInterval 60s]
+        TIMER60[setInterval 60s]
+        TIMER6H[setInterval 6h]
         MANUAL[POST /api/maintenance]
     end
 
@@ -21,20 +23,23 @@ graph LR
         ML[Maintenance Loop\nlib/loops/maintenance.ts]
     end
 
+    BOOT -->|startScheduler| SL
+    BOOT -->|runMaintenance + setInterval 6h| ML
     HTTP -->|POST /api/chat| IL
     HTTP -->|POST /api/jobs| JR
     HTTP -->|PATCH /api/jobs/:id| JR
-    TIMER --> SL
+    TIMER60 --> SL
+    TIMER6H --> ML
     SL -->|enqueueJob + runJob| JR
-    MANUAL --> ML
+    MANUAL -->|on-demand| ML
 ```
 
 | Loop | Entry Point | Trigger | Sync/Async |
 |------|-------------|---------|------------|
 | Interactive | `handleUserMessage()` | POST /api/chat | Synchronous (await) |
 | Job Runner | `enqueueJob()` + `runJob()` | API or Scheduler | Asynchronous (fire-and-forget) |
-| Scheduler | `startScheduler()` | `setInterval` 60s | Asynchronous loop |
-| Maintenance | `runMaintenance()` | POST /api/maintenance | Synchronous (await) |
+| Scheduler | `startScheduler()` | Server start → `setInterval` 60s | Asynchronous loop |
+| Maintenance | `runMaintenance()` | Server start + every 6h + POST /api/maintenance | Synchronous (await) |
 
 ---
 
@@ -128,12 +133,25 @@ runJob(jobId):
 ## 3. Scheduler Loop
 
 **File:** `src/lib/loops/scheduler.ts`
-**Entry:** `startScheduler()` — called once on app start
+**Entry:** `startScheduler()` — called once from `src/instrumentation.ts` on server start
 
 ### Responsibilities
 - Polls the `schedules` table every 60 seconds
 - Calculates execution interval based on `last_run_at`
 - Calls `enqueueJob()` + `runJob()` when conditions are met
+
+### Bootstrap
+
+`startScheduler()` is invoked by the Next.js instrumentation hook:
+
+```typescript
+// src/instrumentation.ts
+export async function register() {
+  if (process.env.NEXT_RUNTIME !== 'nodejs') return;
+  const { startScheduler } = await import('./lib/loops/scheduler');
+  startScheduler();
+}
+```
 
 ### Cron Parser Limitations
 
@@ -176,7 +194,10 @@ if last_run_at is not set → execute immediately
 ## 4. Maintenance Loop
 
 **File:** `src/lib/loops/maintenance.ts`
-**Entry:** `POST /api/maintenance` → `runMaintenance()`
+**Entry:** Three triggers:
+1. Server start — runs once 5 s after `src/instrumentation.ts` executes
+2. Automatic — `setInterval` every 6 hours (started by `instrumentation.ts`)
+3. On-demand — `POST /api/maintenance`
 
 ### Responsibilities
 - Deletes expired memory notes

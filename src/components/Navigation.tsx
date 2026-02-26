@@ -16,7 +16,7 @@ export default function Navigation() {
 
   return (
     <nav
-      className="relative z-20 border-b"
+      className="fixed top-0 left-0 right-0 z-20 border-b"
       style={{ borderColor: 'var(--border-subtle)', background: 'rgba(7,7,15,0.85)', backdropFilter: 'blur(20px)' }}
     >
       <div className="max-w-6xl mx-auto px-5 h-14 flex items-center justify-between">

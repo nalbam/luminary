@@ -16,7 +16,7 @@ export default function RootLayout({
     <html lang="en">
       <body className="min-h-screen flex flex-col">
         <Navigation />
-        <main className="flex-1 relative z-10">
+        <main className="flex-1 relative z-10 pt-14">
           {children}
         </main>
       </body>

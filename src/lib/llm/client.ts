@@ -16,19 +16,18 @@ export function getClient(): LLMClient {
     throw new Error(`Invalid LLM_PROVIDER: "${provider}". Valid values: openai, anthropic`);
   }
 
-  if (
-    provider === 'anthropic' ||
-    (!provider && !process.env.OPENAI_API_KEY && process.env.ANTHROPIC_API_KEY)
-  ) {
+  const hasAnthropicCreds = !!(process.env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_AUTH_TOKEN);
+  if (provider === 'anthropic' || (!provider && !process.env.OPENAI_API_KEY && hasAnthropicCreds)) {
+    if (!hasAnthropicCreds) throw new Error('ANTHROPIC_API_KEY or ANTHROPIC_AUTH_TOKEN is not set');
+    // Pass explicit key only for API keys; for AUTH_TOKEN let the SDK read from env automatically.
     const apiKey = process.env.ANTHROPIC_API_KEY;
-    if (!apiKey) throw new Error('ANTHROPIC_API_KEY is not set');
-    _client = new AnthropicClient(apiKey);
+    _client = new AnthropicClient(apiKey || undefined);
     return _client;
   }
 
   // Default: OpenAI
   const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) throw new Error('OPENAI_API_KEY (or ANTHROPIC_API_KEY) is not set');
+  if (!apiKey) throw new Error('OPENAI_API_KEY (or ANTHROPIC_API_KEY/ANTHROPIC_AUTH_TOKEN) is not set');
   _client = new OpenAIClient(apiKey);
   return _client;
 }

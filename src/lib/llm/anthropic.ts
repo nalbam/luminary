@@ -12,8 +12,16 @@ import type {
 export class AnthropicClient implements LLMClient {
   private client: Anthropic;
 
-  constructor(apiKey: string) {
-    this.client = new Anthropic({ apiKey });
+  constructor(apiKey?: string) {
+    // Session ingress tokens (sk-ant-si-*) use Bearer auth (Authorization header).
+    // When no explicit key is given, the SDK reads ANTHROPIC_API_KEY or ANTHROPIC_AUTH_TOKEN from env.
+    if (!apiKey) {
+      this.client = new Anthropic({});
+    } else if (apiKey.startsWith('sk-ant-si-')) {
+      this.client = new Anthropic({ authToken: apiKey, apiKey: undefined });
+    } else {
+      this.client = new Anthropic({ apiKey });
+    }
   }
 
   async complete(params: {

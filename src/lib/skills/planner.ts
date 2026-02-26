@@ -62,14 +62,34 @@ Rules:
 Respond with ONLY a valid JSON object — no markdown, no explanation:
 {"reasoning": "<exit criteria + brief explanation>", "steps": [{"toolName": "web_search", "input": {"query": "example search"}}]}`;
 
-  try {
-    const response = await llm.complete({
-      system: systemPrompt,
-      messages: [{ role: 'user', content: `Routine: ${routineName}\nGoal: ${routineGoal}\nInput: ${JSON.stringify(jobInput)}` }],
-      tools: [],
-      maxTokens: 2000,
-    });
+  // Retry logic: same strategy as the agent loop (3 attempts, exponential backoff)
+  const plannerMsg = [{ role: 'user' as const, content: `Routine: ${routineName}\nGoal: ${routineGoal}\nInput: ${JSON.stringify(jobInput)}` }];
+  let response;
+  let lastErr: unknown;
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      response = await llm.complete({ system: systemPrompt, messages: plannerMsg, tools: [], maxTokens: 2000 });
+      lastErr = undefined;
+      break;
+    } catch (e) {
+      lastErr = e;
+      const msg = String(e).toLowerCase();
+      const retryable = msg.includes('rate limit') || msg.includes('429') || msg.includes('503') ||
+        msg.includes('529') || msg.includes('overload') || msg.includes('timeout') ||
+        msg.includes('econnreset') || msg.includes('econnrefused');
+      if (attempt < 3 && retryable) {
+        const delay = 1000 * Math.pow(2, attempt - 1);
+        console.warn(`Planner LLM error (attempt ${attempt}/3), retrying in ${delay}ms:`, String(e));
+        await new Promise(r => setTimeout(r, delay));
+      } else break;
+    }
+  }
+  if (lastErr !== undefined || !response) {
+    console.error('Planner failed after retries:', lastErr);
+    return { success: false, steps: [], reasoning: `LLM error: ${String(lastErr)}` };
+  }
 
+  try {
     if (response.type !== 'text') {
       return { success: false, steps: [], reasoning: 'Unexpected tool_call response from planner LLM' };
     }
@@ -113,7 +133,7 @@ Respond with ONLY a valid JSON object — no markdown, no explanation:
       reasoning: result.reasoning || '',
     };
   } catch (e) {
-    console.error('Planner error:', e);
+    console.error('Planner parse/validate error:', e);
     return { success: false, steps: [], reasoning: `Error: ${String(e)}` };
   }
 }

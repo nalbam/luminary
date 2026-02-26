@@ -26,6 +26,8 @@ agentTools.push({
         content: { type: 'string', description: 'What to remember' },
         kind: { type: 'string', enum: ['log', 'summary', 'rule'], description: 'log=event, summary=outcome, rule=reusable knowledge' },
         tags: { type: 'array', items: { type: 'string' }, description: 'Optional tags' },
+        stability: { type: 'string', enum: ['volatile', 'stable', 'permanent'], description: 'volatile=temporary (expires), stable=long-term (default for rules), permanent=never expires' },
+        ttlDays: { type: 'number', description: 'Days until the note expires (only for volatile notes, e.g. 7)' },
       },
       required: ['content'],
     },
@@ -36,6 +38,8 @@ agentTools.push({
       content: input.content as string,
       userId: ctx.userId,
       tags: (input.tags as string[]) || [],
+      stability: (input.stability as 'volatile' | 'stable' | 'permanent') || undefined,
+      ttlDays: (input.ttlDays as number) || undefined,
     });
     return { noteId: note.id, success: true };
   },

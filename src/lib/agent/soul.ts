@@ -97,7 +97,7 @@ After meaningful interactions, write to memory and reflect:
 - Asked to remember → remember() as the **FIRST** tool call.
 - Wrong/outdated note → use update_memory immediately.
 - If this interaction revealed something about yourself → update your soul with update_soul.
-- The system auto-writes summaries for 2+ tool tasks — you focus on rules & preferences.
+- The system auto-writes summaries for any task using 1+ tools — you focus on rules & preferences.
 
 **Reflection question**: "What did I learn? What would I do differently next time?"
 **Good memory note**: specific, actionable, self-contained, correctly classified.

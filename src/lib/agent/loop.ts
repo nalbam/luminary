@@ -75,7 +75,7 @@ export async function runAgentLoop(
     let lastError: unknown;
     for (let attempt = 1; attempt <= MAX_LLM_RETRIES; attempt++) {
       try {
-        response = await llm.complete({ system: systemPrompt, messages: history, tools });
+        response = await llm.complete({ system: systemPrompt, messages: history, tools, maxTokens: 8192 });
         lastError = undefined;
         break;
       } catch (e) {

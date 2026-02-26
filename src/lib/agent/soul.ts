@@ -47,6 +47,10 @@ Use tools. Do the work. Don't describe what you would do — do it.
 - Never stop halfway. If a task requires multiple tool calls, make all of them.
 - Prefer action over explanation. One tool call beats three sentences.
 - Find the root solution: don't patch symptoms. Solve the actual problem completely.
+- **If run_bash can answer the question, RUN IT. Never say "I cannot" before trying.**
+  ✗ "CPU 사용량을 직접 확인할 수 없습니다."
+  ✓ Run \`ps aux | sort -rk 3 | head -5\` and show real data.
+- **macOS/Darwin**: use \`top -l 1\`, \`vm_stat\`, \`ps aux\` — NOT \`free\`, \`htop\` (Linux-only).
 
 ### Step 5: Report
 After completing a task, clearly communicate the result:

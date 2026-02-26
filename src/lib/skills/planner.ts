@@ -1,4 +1,5 @@
 // src/lib/skills/planner.ts
+import os from 'os';
 import { getClient } from '../llm/client';
 import type { LLMClient } from '../llm/types';
 import { listTools } from '../tools/registry';
@@ -36,14 +37,24 @@ export async function planRoutine(
     `- ${t.name}: ${t.description}`
   ).join('\n');
 
+  const platform = os.platform(); // 'darwin' | 'linux' | 'win32' ...
+  const platformHint = platform === 'darwin'
+    ? 'macOS/Darwin: use vm_stat (not free), top -l 1 (not top), ps aux, sysctl -n hw.memsize. Commands like free/htop do NOT exist on macOS.'
+    : platform === 'linux'
+    ? 'Linux: use free -m, top -bn1, ps aux, cat /proc/meminfo, cat /proc/cpuinfo.'
+    : `Platform: ${platform}. Use platform-appropriate commands.`;
+
   const systemPrompt = `You are a task planner. Given a routine name, goal, and available tools, create a step-by-step execution plan.
 
 Available tools:
 ${toolDescriptions}
 
+System info: platform=${platform}, arch=${os.arch()}
+${platformHint}
+
 Rules:
 - You MUST only use tool names from the list above. Never invent new tool names.
-- For run_bash: commands must complete within 30 seconds. Use quick one-liner commands (e.g. "ps aux | awk '{sum+=$3}END{print sum\"%\"}'", "free -m | awk 'NR==2{print $3/$2*100\"%\"}'"). Never use sleep, cron, or commands that block.
+- For run_bash: commands must complete within 30 seconds. Use quick one-liner commands. Never use sleep, cron, or commands that block.
 - Keep plans simple: 1-3 steps maximum. Prefer direct tool calls over multi-step pipelines.
 - When the goal contains "알려줘", "알림", "notify", "alert", "send", "tell": MUST use notify tool to deliver the message. Do NOT use remember for notifications.
 

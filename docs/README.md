@@ -34,7 +34,7 @@
 
 ### Memory Notes
 
-- **MUST** set `sensitivity: 'sensitive'` on notes containing sensitive information. `buildContextPack()` automatically excludes them.
+- **MUST** set `sensitivity: 'sensitive'` on notes containing sensitive information. `buildAgentContext()` automatically excludes them.
 - **MUST** set `ttlDays` on notes with `stability: 'volatile'`.
 - **NEVER** directly modify a note that has `superseded_by` set. Write a new note and link via `superseded_by`.
 - **MUST** `getNotes()` queries with `expires_at > NOW AND superseded_by IS NULL` conditions. Expired and superseded notes are automatically excluded.
@@ -50,7 +50,8 @@
 
 - **MUST** the scheduler checks the `schedulerStarted` flag to ensure `startScheduler()` runs only once.
 - **MUST** not start the scheduler if `NEXT_PHASE === 'phase-production-build'`.
-- The cron parser only supports three patterns: `*/N * * * *`, `0 * * * *`, `0 0 * * *`. Unsupported patterns will not execute.
+- Cron expressions use standard 5-field syntax via `node-cron` (UTC). Minimum interval: 5 minutes (`*/5 * * * *`).
+- Schedules support two modes: `action_type='routine'` (LLM-planned multi-step) or `action_type='tool_call'` (direct single tool execution).
 
 ---
 
@@ -67,12 +68,14 @@ src/
   lib/
     db/             ← Bottom layer. No dependencies on other lib modules
     events/         ← Filesystem dependency. No dependency on db/
-    adapters/       ← Pure transform functions. No dependencies
-    memory/         → lib/db
+    llm/            ← LLM adapters (OpenAI, Anthropic). No dependency on db/
+    adapters/       ← Input adapter. No dependencies
+    memory/         → lib/db, lib/llm (embeddings)
     tools/          → lib/db, lib/memory
-    skills/         → lib/tools (registry via listTools)
+    skills/         → lib/llm, lib/tools (registry via listTools)
+    agent/          → lib/llm, lib/memory, lib/tools
     jobs/           → lib/db, lib/tools, lib/memory, lib/skills
-    loops/          → lib/jobs, lib/memory, lib/events
+    loops/          → lib/agent, lib/jobs, lib/memory, lib/events
 ```
 
 **Rule:** Upper layers import lower layers. Reverse imports are forbidden as they cause circular dependencies.

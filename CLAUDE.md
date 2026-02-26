@@ -59,34 +59,36 @@ The scheduler and maintenance loops are bootstrapped by `src/instrumentation.ts`
 ```
 POST /api/chat
   → handleUserMessage (loops/interactive.ts)
-    → ensureSoulExists (agent/soul.ts)       # initialize soul on first call
-    → buildAgentContext (agent/context.ts)    # soul → rule → summary, message-aware semantic retrieval
+    → ensureUserExists (memory/users.ts)
     → runAgentLoop (agent/loop.ts)
+      → ensureSoulExists (agent/soul.ts)       # initialize/refresh soul
+      → buildAgentContext (agent/context.ts)    # soul → rule → summary, semantic retrieval
       → saveUserMessage (memory/conversations.ts)
       → getConversationHistory               # multi-turn history
-      → LLM call with 11 agent tools
+      → LLM call with 20 agent tools
       → if tool_calls → executeAgentTool() → saveToolResults()
-      → if text → saveAssistantMessage() → return
+      → if text → saveAssistantMessage() → auto-summary (1+ tools) → return
       → repeat up to MAX_ITERATIONS (10)
 ```
 
-### Data Flow for a Skill Job
+### Data Flow for a Routine Job
 
 ```
 POST /api/jobs  →  enqueueJob()  →  runJob()
-  → planSkill (skills/planner.ts)      # LLM produces a Plan (steps[])
+  → planRoutine (skills/planner.ts)    # LLM produces a Plan (steps[])
   → step_runs inserted per tool call
-  → getTool(name).run()                 # from tool registry
+  → getTool(name).run()                # from tool registry
   → writeNote (summary kind, volatile, ttl=7d)
 ```
 
 ### Database Schema (`src/lib/db/schema.sql`)
 
-Six tables:
+Eight tables:
 - `users` — user preferences
-- `skills` — agent skill definitions (trigger_type: manual | schedule | event)
-- `schedules` — cron-based triggers linked to skills
-- `jobs` — job state machine (queued → running → succeeded/failed/canceled)
+- `routines` — multi-step task recipes (name, goal, tools, trigger_type: manual | schedule | event)
+- `skills` — integration modules (type: telegram | slack | webhook | custom; config, status)
+- `schedules` — cron-based triggers; `action_type='routine'` or `action_type='tool_call'`
+- `jobs` — job state machine (queued → running → succeeded/failed/canceled); links to `routine_id` or `tool_name`
 - `step_runs` — individual tool call records within a job
 - `memory_notes` — four kinds: `log`, `summary`, `rule`, `soul`
 - `conversations` — multi-turn chat history (user/assistant/assistant_tool_calls/tool_results)
@@ -104,7 +106,7 @@ Both providers implement the same `LLMClient` interface. LLMTool.inputSchema **m
 
 ### Agent Tools (`src/lib/agent/tools.ts`)
 
-11 tools available during chat via the agentic loop:
+20 tools available during chat via the agentic loop:
 
 | Tool | Purpose |
 |------|---------|
@@ -115,10 +117,19 @@ Both providers implement the same `LLMClient` interface. LLMTool.inputSchema **m
 | `web_search` | Search the web (Brave → DuckDuckGo fallback) |
 | `fetch_url` | Fetch a URL (SSRF-protected) |
 | `run_bash` | Execute a shell command (stdout/stderr/exitCode) |
-| `list_skills` | List available skills |
-| `create_skill` | Create a new skill (name, goal, triggerType, tools) |
-| `create_job` | Create and run a skill job |
-| `create_schedule` | Create a cron schedule |
+| `list_routines` | List available routines |
+| `create_routine` | Create a new routine (name, goal, tools) |
+| `update_routine` | Update an existing routine |
+| `delete_routine` | Delete a routine (also removes linked schedules and queued jobs) |
+| `list_skills` | List integration skills |
+| `create_skill` | Create an integration (type: telegram/slack/webhook/custom) |
+| `create_schedule` | Create a cron schedule (routineId OR toolName+toolInput) |
+| `list_schedules` | List active schedules |
+| `delete_schedule` | Delete a schedule |
+| `create_job` | Create and run a routine job |
+| `list_jobs` | List recent jobs |
+| `cancel_job` | Cancel a queued job |
+| `notify` | Send a notification (Telegram → Slack → memory log fallback) |
 
 ### Tool Registry (`src/lib/tools/`)
 

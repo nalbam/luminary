@@ -34,15 +34,15 @@ CREATE TABLE IF NOT EXISTS users (
 
 ---
 
-### `skills`
+### `routines`
 
-Task definitions that the agent can execute.
+Complex multi-step task recipes. Executed by the Job Runner with LLM planning.
 
 ```sql
-CREATE TABLE IF NOT EXISTS skills (
+CREATE TABLE IF NOT EXISTS routines (
   id             TEXT PRIMARY KEY,
   name           TEXT NOT NULL,
-  goal           TEXT NOT NULL,             -- Used directly as LLM prompt
+  goal           TEXT NOT NULL,             -- Used directly as LLM planning prompt
   trigger_type   TEXT NOT NULL CHECK (trigger_type IN ('manual', 'schedule', 'event')),
   trigger_config TEXT DEFAULT '{}',         -- JSON: per-trigger configuration
   tools          TEXT DEFAULT '[]',         -- JSON: allowed tool name array (empty = all allowed)
@@ -57,76 +57,85 @@ CREATE TABLE IF NOT EXISTS skills (
 
 **JSON columns:** `trigger_config`, `tools`, `budget`, `output_config`, `memory_config`
 
-**TypeScript type (API response):**
-```typescript
-interface Skill {
-  id: string;
-  name: string;
-  goal: string;
-  trigger_type: 'manual' | 'schedule' | 'event';
-  trigger_config: string;  // JSON string — requires parse
-  tools: string;           // JSON string — requires parse
-  budget: string;          // JSON string — requires parse
-  output_config: string;   // JSON string — requires parse
-  memory_config: string;   // JSON string — requires parse
-  enabled: number;         // SQLite boolean: 0 | 1
-  created_at: string;
-  updated_at: string;
-}
+---
+
+### `skills`
+
+Integration modules that connect external services.
+
+```sql
+CREATE TABLE IF NOT EXISTS skills (
+  id             TEXT PRIMARY KEY,
+  name           TEXT NOT NULL,
+  type           TEXT NOT NULL CHECK (type IN ('telegram', 'slack', 'google_calendar', 'webhook', 'custom')),
+  config         TEXT DEFAULT '{}',         -- JSON: integration config (env var names, endpoints, etc.)
+  status         TEXT DEFAULT 'unconfigured'
+                 CHECK (status IN ('connected', 'unconfigured', 'error')),
+  last_tested_at TEXT,
+  enabled        INTEGER DEFAULT 1,
+  user_id        TEXT DEFAULT 'user_default',
+  created_at     TEXT DEFAULT (datetime('now')),
+  updated_at     TEXT DEFAULT (datetime('now'))
+);
 ```
+
+**JSON columns:** `config`
 
 ---
 
 ### `schedules`
 
-Cron-based automatic execution settings for skills.
+Cron-based triggers. Can execute a routine OR a direct tool call.
 
 ```sql
 CREATE TABLE IF NOT EXISTS schedules (
-  id         TEXT PRIMARY KEY,
-  skill_id   TEXT NOT NULL REFERENCES skills(id),
-  cron_expr  TEXT NOT NULL,
-  enabled    INTEGER DEFAULT 1,
-  last_run_at TEXT,                         -- ISO 8601, last execution time
-  next_run_at TEXT,                         -- ISO 8601, currently unused
-  created_at TEXT DEFAULT (datetime('now'))
+  id          TEXT PRIMARY KEY,
+  routine_id  TEXT REFERENCES routines(id),          -- NULL for tool_call actions
+  action_type TEXT NOT NULL DEFAULT 'routine'
+              CHECK (action_type IN ('routine', 'tool_call')),
+  tool_name   TEXT,                                  -- set when action_type='tool_call'
+  tool_input  TEXT DEFAULT '{}',                     -- JSON: tool input for direct calls
+  cron_expr   TEXT NOT NULL,                         -- standard 5-field cron (UTC)
+  enabled     INTEGER DEFAULT 1,
+  last_run_at TEXT,                                  -- ISO 8601
+  next_run_at TEXT,                                  -- ISO 8601, currently unused
+  created_at  TEXT DEFAULT (datetime('now'))
 );
 ```
 
-**Supported Cron Patterns** (`lib/loops/scheduler.ts` `parseCronInterval`):
+**Cron expressions:** Full 5-field syntax via `node-cron` (UTC timezone). Minimum interval: 5 minutes.
+Examples: `*/5 * * * *` (every 5 min), `0 9 * * 1-5` (weekdays 9am), `0 0 * * *` (daily midnight).
 
-| Pattern | Meaning |
-|---------|---------|
-| `*/N * * * *` | Every N minutes |
-| `0 * * * *` | Every hour on the hour |
-| `0 0 * * *` | Daily at midnight |
-
-Other patterns cause `parseCronInterval()` to return `null` and skip execution.
+**Two schedule modes:**
+- `action_type='routine'`: requires `routine_id`; runs LLM-planned multi-step job
+- `action_type='tool_call'`: requires `tool_name` + `tool_input`; runs a single tool directly
 
 ---
 
 ### `jobs`
 
-Skill execution instances. Managed as a state machine.
+Routine execution instances. Managed as a state machine.
 
 ```sql
 CREATE TABLE IF NOT EXISTS jobs (
   id           TEXT PRIMARY KEY,
-  skill_id     TEXT REFERENCES skills(id),  -- nullable (for direct queuing)
-  trigger_type TEXT NOT NULL,               -- 'manual' | 'schedule' | 'event'
+  routine_id   TEXT REFERENCES routines(id), -- nullable (for direct tool_call jobs)
+  tool_name    TEXT,                         -- set for direct tool_call jobs
+  tool_input   TEXT DEFAULT '{}',            -- JSON: tool input for direct jobs
+  trigger_type TEXT NOT NULL,                -- 'manual' | 'schedule' | 'event'
   status       TEXT NOT NULL DEFAULT 'queued'
                CHECK (status IN ('queued','running','succeeded','failed','canceled')),
-  input        TEXT DEFAULT '{}',           -- JSON: job input parameters
-  result       TEXT,                        -- JSON: job result (filled after completion)
-  error        TEXT,                        -- Error message (when status='failed')
-  user_id      TEXT,                        -- Requesting user ID
+  input        TEXT DEFAULT '{}',            -- JSON: job input parameters
+  result       TEXT,                         -- JSON: job result (filled after completion)
+  error        TEXT,                         -- Error message (when status='failed')
+  user_id      TEXT,                         -- Requesting user ID
   created_at   TEXT DEFAULT (datetime('now')),
-  started_at   TEXT,                        -- Execution start time
-  completed_at TEXT                         -- Completion/failure/cancellation time
+  started_at   TEXT,                         -- Execution start time
+  completed_at TEXT                          -- Completion/failure/cancellation time
 );
 ```
 
-**JSON columns:** `input`, `result`
+**JSON columns:** `input`, `result`, `tool_input`
 
 **State transitions:**
 

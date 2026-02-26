@@ -8,12 +8,13 @@ vibemon-agent moves beyond request-response chatbots to become an always-on syst
 
 ## Features
 
-- **Web Chat UI** – Interactive chat interface with streaming responses
-- **Skill Editor** – Create and manage skill cards (manual, scheduled, or event-triggered)
+- **Web Chat UI** – Interactive chat interface with multi-turn agentic loop (up to 10 tool-call iterations)
+- **Routine Editor** – Create and manage routine cards (complex multi-step task recipes, LLM-planned)
+- **Skills / Integrations** – Connect external services (Telegram, Slack, Webhook, etc.)
 - **Job Runner** – Async job execution with state machine (queued → running → succeeded/failed/canceled)
-- **Scheduler** – Cron-based skill triggering
-- **Memory System** – Three kinds of notes (log, summary, rule) with semantic recall via sqlite-vec
-- **Tool Registry** – Extensible tool system (summarize, remember, list_memory, web_search, bash)
+- **Scheduler** – Cron-based triggering; runs a routine or a direct tool call
+- **Memory System** – Four kinds of notes (log, summary, rule, soul) with semantic recall via sqlite-vec
+- **20 Agent Tools** – remember, run_bash, web_search, fetch_url, notify, create_routine, create_schedule, and more
 - **Maintenance Loop** – Periodic memory pruning, merging, and refreshing
 - **Event Store** – Append-only JSONL event logging for auditability
 
@@ -24,7 +25,7 @@ vibemon-agent moves beyond request-response chatbots to become an always-on syst
 - [Tailwind CSS](https://tailwindcss.com/)
 - [better-sqlite3](https://github.com/WiseLibs/better-sqlite3) for SQLite
 - [sqlite-vec](https://github.com/asg017/sqlite-vec) for vector embeddings
-- [OpenAI API](https://openai.com/) for LLM capabilities
+- [OpenAI API](https://openai.com/) or [Anthropic API](https://anthropic.com/) for LLM (selectable via `LLM_PROVIDER`)
 - [node-cron](https://github.com/node-cron/node-cron) for scheduling
 
 ## Getting Started
@@ -59,25 +60,30 @@ src/
   app/                    # Next.js App Router pages and API routes
     api/
       chat/               # POST /api/chat – interactive chat
-      jobs/               # GET/POST /api/jobs
-      skills/             # GET/POST /api/skills
-      schedules/          # GET/POST /api/schedules
+      jobs/               # GET/POST /api/jobs, PATCH /api/jobs/:id
+      routines/           # GET/POST /api/routines, GET/PUT/DELETE /api/routines/:id
+      skills/             # GET/POST /api/skills – integrations (Telegram, Slack…)
+      schedules/          # GET/POST /api/schedules, DELETE /api/schedules/:id
       memory/             # GET /api/memory
+      conversations/      # GET /api/conversations
       maintenance/        # POST /api/maintenance
     page.tsx              # Chat UI
-    skills/page.tsx       # Skills editor
+    routines/page.tsx     # Routine editor
+    skills/page.tsx       # Integrations viewer
     jobs/page.tsx         # Jobs viewer
     memory/page.tsx       # Memory viewer
-  components/             # React components
+    settings/page.tsx     # User settings
   lib/
+    agent/                # Agentic loop, soul, context, tool definitions
     db/                   # SQLite database setup and schema
     events/               # Append-only event store (JSONL)
-    tools/                # Tool registry and implementations
-    skills/               # Skill planner
+    llm/                  # LLM abstraction (OpenAI + Anthropic adapters)
+    tools/                # Tool registry and job-execution tool implementations
+    skills/               # Routine planner (planRoutine)
     jobs/                 # Job runner
-    memory/               # Memory notes, context pack, embeddings
+    memory/               # Memory notes, embeddings, conversation history
     loops/                # Runtime loops (interactive, scheduler, maintenance)
-    adapters/             # Input/output adapters
+    adapters/             # Input adapter (web.ts)
 
 data/                     # Local runtime data (git-ignored)
   vibemon.db              # SQLite database
@@ -88,26 +94,33 @@ data/                     # Local runtime data (git-ignored)
 
 ### Four Runtime Loops
 
-1. **Interactive Loop** – Handles user messages, builds memory context, calls OpenAI
-2. **Job Loop** – Executes skill jobs asynchronously with tool calls
-3. **Scheduled Loop** – Fires jobs based on cron expressions
+1. **Interactive Loop** – Handles user messages, builds memory context, calls LLM (up to 10 tool-call iterations)
+2. **Job Loop** – Executes routine jobs asynchronously; LLM plans steps, tools execute them
+3. **Scheduled Loop** – Fires jobs based on cron expressions (full 5-field syntax, UTC)
 4. **Maintenance Loop** – Prunes expired notes, merges duplicates, refreshes stale rules
 
 ### Memory Model
 
-Three kinds of memory notes:
-- **Log** – Raw event records for audit and replay
-- **Summary** – Session/job outcomes (goal, what was done, evidence, next actions)
+Four kinds of memory notes:
+- **Soul** – Agent identity and principles (permanent, singleton per user)
 - **Rule** – Reusable knowledge with confidence, stability, TTL, and evidence references
+- **Summary** – Session/job outcomes written automatically after tool use
+- **Log** – Raw event records for audit and replay
 
-### Tool Registry
+### Agent Tools (20)
 
-Tools are the only way the agent can perform real work:
-- `summarize` – Text summarization via LLM
-- `remember` – Write a memory note
-- `list_memory` – Retrieve memory notes
-- `web_search` – Web search (stub, extensible)
-- `bash` – Execute shell commands
+Tools available during interactive chat via the agentic loop:
+
+| Category | Tools |
+|----------|-------|
+| Memory | `remember`, `list_memory`, `update_memory`, `update_soul` |
+| Web | `web_search`, `fetch_url` |
+| Shell | `run_bash` |
+| Routines | `list_routines`, `create_routine`, `update_routine`, `delete_routine` |
+| Skills | `list_skills`, `create_skill` |
+| Schedules | `list_schedules`, `create_schedule`, `delete_schedule` |
+| Jobs | `list_jobs`, `create_job`, `cancel_job` |
+| Notify | `notify` (Telegram → Slack → memory log fallback) |
 
 ## License
 

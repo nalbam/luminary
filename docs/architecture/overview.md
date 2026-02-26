@@ -29,10 +29,10 @@ graph TB
     end
 
     subgraph Core["Core Libraries (src/lib/)"]
-        PLANNER[Skill Planner\nskills/planner.ts]
+        PLANNER[Routine Planner\nskills/planner.ts]
         TOOLS[Tool Registry\ntools/registry.ts]
         NOTES[Memory Notes\nmemory/notes.ts]
-        CTX[Context Pack\nmemory/context-pack.ts]
+        CTX[Agent Context\nagent/context.ts]
         EMB[Embeddings\nmemory/embeddings.ts]
         EVENTS[Event Store\nevents/store.ts]
         ADAPT[Adapters\nadapters/]
@@ -67,18 +67,19 @@ graph TB
 
 | Component | File | Role |
 |-----------|------|------|
-| Interactive Loop | `lib/loops/interactive.ts` | Receives user messages → builds memory context → calls LLM → records events |
-| Job Runner | `lib/jobs/runner.ts` | Queues and executes skill jobs, manages tool call ordering, records step_runs |
-| Scheduler Loop | `lib/loops/scheduler.ts` | Polls `schedules` table every 60 seconds, auto-executes interval-based jobs |
+| Interactive Loop | `lib/loops/interactive.ts` | Receives user messages → delegates to `runAgentLoop()` |
+| Agent Loop | `lib/agent/loop.ts` | Agentic loop: soul init → context build → LLM call → tool execution → auto-summary |
+| Job Runner | `lib/jobs/runner.ts` | Queues and executes routine jobs, manages tool call ordering, records step_runs |
+| Scheduler Loop | `lib/loops/scheduler.ts` | Polls `schedules` table every 60 seconds, fires routine jobs or direct tool calls |
 | Maintenance Loop | `lib/loops/maintenance.ts` | Deletes expired notes, batch-merges volatile notes older than 7 days |
-| Skill Planner | `lib/skills/planner.ts` | Generates skill execution plan (`Plan`) using OpenAI gpt-4o-mini |
+| Routine Planner | `lib/skills/planner.ts` | Generates routine execution plan (`Plan`) using LLM |
 | Tool Registry | `lib/tools/registry.ts` | Defines `Tool` interface, name-based tool lookup map |
 | Memory Notes | `lib/memory/notes.ts` | `memory_notes` CRUD, TTL expiration, note merging |
-| Context Pack | `lib/memory/context-pack.ts` | Builds memory context to inject into OpenAI system prompt |
+| Agent Context | `lib/agent/context.ts` | Builds system prompt: soul → rules → summaries, with semantic retrieval |
+| Soul | `lib/agent/soul.ts` | Agent identity notes; `ensureSoulExists()` initializes/refreshes on each request |
 | Embeddings | `lib/memory/embeddings.ts` | `sqlite-vec` vector storage and search, OpenAI `text-embedding-3-small` |
 | Event Store | `lib/events/store.ts` | Immutable JSONL audit log writing and reading |
-| Input Adapter | `lib/adapters/input/web.ts` | HTTP request body → `WebInputMessage` type conversion and validation |
-| Output Adapter | `lib/adapters/output/web.ts` | Internal response → `WebOutputMessage` type conversion |
+| Input Adapter | `lib/adapters/input/web.ts` | HTTP request body → `WebInputMessage` type conversion |
 
 ---
 
@@ -88,34 +89,43 @@ graph TB
 sequenceDiagram
     participant B as Browser
     participant API as POST /api/chat
-    participant A as Input Adapter
     participant IL as Interactive Loop
-    participant CP as Context Pack
-    participant DB as memory_notes (SQLite)
+    participant AL as Agent Loop
+    participant CTX as Agent Context
+    participant DB as SQLite (memory_notes + conversations)
     participant EV as Event Store (JSONL)
-    participant OAI as OpenAI gpt-4o-mini
+    participant LLM as LLM (OpenAI or Anthropic)
 
-    B->>API: { message, userId?, threadId? }
-    API->>A: parseWebInput(body)
-    A-->>API: { message, userId="user_default", threadId? }
+    B->>API: { message, userId? }
     API->>IL: handleUserMessage(message, userId)
+    IL->>AL: runAgentLoop(message, userId)
 
-    IL->>EV: appendEvent({ type: "user_message", userId, payload })
-    IL->>CP: buildContextPack(userId, message)
-    CP->>DB: getNotes({ userId, limit: 20 })<br/>[expires_at>NOW, superseded_by IS NULL, sensitivity≠sensitive]
-    DB-->>CP: MemoryNote[]
-    CP-->>IL: { formattedText: "## Memory Context\n[log] ..." }
+    AL->>DB: ensureSoulExists() — init/refresh soul note
+    AL->>CTX: buildAgentContext(userId, message)
+    CTX->>DB: soul + rules + summaries (semantic retrieval if embeddings available)
+    DB-->>CTX: MemoryNote[]
+    CTX-->>AL: system prompt string
 
-    IL->>OAI: chat.completions.create({ model: gpt-4o-mini,<br/>messages: [system(prompt+context), user(message)] })
-    OAI-->>IL: response text
+    AL->>DB: saveUserMessage(), getConversationHistory()
+    AL->>EV: appendEvent({ type: "user_message" })
 
-    IL->>EV: appendEvent({ type: "assistant_message", userId, payload })
+    loop up to 10 iterations
+        AL->>LLM: complete({ system, messages, tools[20] })
+        LLM-->>AL: tool_calls OR text
 
-    opt message.includes("remember") || "note"
-        IL->>DB: writeNote({ kind: "log", stability: "volatile", ttlDays: 30 })
+        alt tool_calls
+            AL->>AL: executeAgentTool() for each call
+            AL->>DB: saveToolResults()
+        else text
+            AL->>DB: saveAssistantMessage()
+            AL->>EV: appendEvent({ type: "assistant_message" })
+            opt 1+ tools were executed
+                AL->>DB: writeNote(kind="summary", Auto-Reflect)
+            end
+            AL-->>API: { response }
+        end
     end
 
-    IL-->>API: { response }
     API-->>B: { response }
 ```
 
@@ -133,7 +143,7 @@ sequenceDiagram
     participant Tool as Tool (registry)
     participant M as memory_notes
 
-    T->>R: enqueueJob(skillId, triggerType, input, userId)
+    T->>R: enqueueJob(routineId, triggerType, input, userId)
     R->>DB: INSERT jobs (status="queued")
     R-->>T: jobId
 
@@ -141,10 +151,10 @@ sequenceDiagram
     T->>R: runJob(jobId) [no await]
     R->>DB: UPDATE jobs SET status="running", started_at=NOW
 
-    R->>DB: SELECT * FROM skills WHERE id=skillId
-    DB-->>R: skill { name, goal, tools:JSON }
+    R->>DB: SELECT * FROM routines WHERE id=routineId
+    DB-->>R: routine { name, goal, tools:JSON }
 
-    R->>P: planSkill(name, goal, tools, input)
+    R->>P: planRoutine(name, goal, tools, input)
     P->>OAI: chat.completions({ response_format: json_object })
     OAI-->>P: { steps: [{toolName, input}], reasoning }
     P-->>R: Plan

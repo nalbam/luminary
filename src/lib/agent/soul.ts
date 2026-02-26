@@ -169,6 +169,20 @@ function upsertNote(
   expectedContent: string,
 ): void {
   const db = getDb();
+
+  // Soul notes are agent-customizable via update_soul — only create if no active soul
+  // note exists. Never overwrite a soul the agent has already personalized.
+  if (kind === 'soul') {
+    const active = db.prepare(
+      `SELECT id FROM memory_notes WHERE kind = 'soul' AND user_id = ? AND superseded_by IS NULL LIMIT 1`
+    ).get(userId) as { id: string } | undefined;
+    if (!active) {
+      writeNote({ kind, content: expectedContent, userId, stability: 'permanent', sensitivity: 'normal' });
+      console.log('soul note initialized for user:', userId);
+    }
+    return;
+  }
+
   const existing = db.prepare(
     `SELECT id, content FROM memory_notes WHERE kind = ? AND user_id = ? LIMIT 1`
   ).get(kind, userId) as { id: string; content: string } | undefined;

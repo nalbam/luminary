@@ -40,7 +40,7 @@ export async function runAgentLoop(
   message: string,
   userId = 'user_default'
 ): Promise<{ response: string }> {
-  // Identity 초기화 (agent, soul, user 노트 없으면 생성)
+  // Initialize identity notes (agent, soul, user) if not yet created
   ensureIdentityExists(userId);
 
   let llm;
@@ -50,14 +50,14 @@ export async function runAgentLoop(
     return { response: `LLM not configured: ${String(e)}` };
   }
 
-  // 이벤트 기록
+  // Record event
   appendEvent({ type: 'user_message', userId, payload: { message } });
 
-  // 히스토리에 저장 + 로드
+  // Save message + load history
   saveUserMessage(userId, message);
   const history: ConversationMessage[] = getConversationHistory(userId);
 
-  // 컨텍스트 + 도구 (현재 메시지 기반 시맨틱 검색 포함)
+  // Build context + tools (with semantic search based on current message)
   const rawSystemPrompt = await buildAgentContext(userId, message);
   const systemPrompt = rawSystemPrompt ||
     'You are a proactive personal AI assistant. Be concise, direct, and helpful.';

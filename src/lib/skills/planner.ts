@@ -57,7 +57,7 @@ Rules:
 - IMPORTANT: This routine is called ONCE when triggered. Recurring scheduling is handled externally (the scheduler fires this routine repeatedly). Do NOT try to set up timers, cron, or recurring logic inside the plan.
 - For run_bash: commands must complete within 30 seconds. Use quick one-liner commands. Never use sleep, cron, or commands that block.
 - Keep plans simple: 1-3 steps maximum. Prefer direct tool calls over multi-step pipelines.
-- When the goal contains "알려줘", "알림", "notify", "alert", "send", "tell": MUST use notify tool to deliver the message. Do NOT use remember for notifications.
+- When the goal contains "notify", "alert", "send", "tell", "let me know": MUST use notify tool to deliver the message. Do NOT use remember for notifications.
 - Define exit criteria in reasoning: what does "done" look like for THIS SINGLE execution of the routine?
 
 Respond with ONLY a valid JSON object — no markdown, no explanation:

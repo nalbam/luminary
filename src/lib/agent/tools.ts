@@ -352,7 +352,7 @@ agentTools.push({
 agentTools.push({
   definition: {
     name: 'create_schedule',
-    description: 'Create a recurring cron schedule. Two modes: (1) routine mode — pass routineId for multi-step tasks. (2) tool_call mode — pass toolName+toolInput for simple single-tool actions (e.g. "5분마다 알림"). Minimum interval: 5 minutes (UTC timezone).',
+    description: 'Create a recurring cron schedule. Two modes: (1) routine mode — pass routineId for multi-step tasks. (2) tool_call mode — pass toolName+toolInput for simple single-tool actions (e.g. "notify every 5 minutes"). Minimum interval: 5 minutes (UTC timezone).',
     inputSchema: {
       type: 'object',
       properties: {
@@ -524,7 +524,7 @@ agentTools.push({
     name: 'notify',
     description:
       'Send a notification message to the user via Telegram, Slack, or memory log fallback. ' +
-      'Use when the user asks to be notified, alerted, or told something — "알려줘", "notify me", "send me", etc.',
+      'Use when the user asks to be notified, alerted, or told something — "notify me", "send me", "let me know", etc.',
     inputSchema: {
       type: 'object',
       properties: {

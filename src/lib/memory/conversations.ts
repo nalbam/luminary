@@ -3,7 +3,7 @@ import { getDb } from '../db';
 import { v4 as uuidv4 } from 'uuid';
 import type { LLMToolCall, LLMToolResult, ConversationMessage } from '../llm/types';
 
-const MAX_ROWS = 80; // 최대 80행 보존 (20턴 × tool call 포함 버퍼)
+const MAX_ROWS = 80; // Preserve up to 80 rows (20 turns × tool call buffer)
 
 interface ConversationRow {
   id: string;
@@ -92,7 +92,7 @@ function rowsToMessages(rows: ConversationRow[]): ConversationMessage[] {
       }
       messages.push({ role: 'assistant_tool_calls', toolCalls });
 
-      // 연속된 tool_results 행 수집
+      // Collect consecutive tool_results rows
       const results: LLMToolResult[] = [];
       while (i + 1 < rows.length && rows[i + 1].role === 'tool_results') {
         i++;

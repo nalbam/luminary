@@ -6,7 +6,7 @@
 //   2. Slack    (SLACK_WEBHOOK_URL)
 //   3. Memory fallback: writes a 'log' note visible in the Memory UI
 //
-// Use this tool whenever the user says "알려줘", "notify me", "send me", etc.
+// Use this tool whenever the user says "notify me", "send me", "let me know", etc.
 import { registerTool } from './registry';
 import { writeNote } from '../memory/notes';
 
@@ -78,15 +78,15 @@ export async function sendNotification(
 registerTool({
   name: 'notify',
   description:
-    'Send a notification message to the user. Use when asked to "알려줘", "notify", "send me", "tell me when", etc. ' +
-    'Supports {time} placeholder which is replaced with the current KST time. ' +
+    'Send a notification message to the user. Use when asked to "notify me", "send me", "tell me when", etc. ' +
+    'Supports {time} placeholder which is replaced with the current local time. ' +
     'Delivers via Telegram (if configured), Slack (if configured), or the Memory log as fallback.',
   inputSchema: {
     type: 'object',
     properties: {
       message: {
         type: 'string',
-        description: 'Notification message. Use {time} to embed current time, e.g. "현재 시간: {time}"',
+        description: 'Notification message. Use {time} to embed current time, e.g. "Current time: {time}"',
       },
     },
     required: ['message'],
@@ -95,7 +95,7 @@ registerTool({
     try {
       // Resolve {time} placeholder with current KST time
       const raw = input.message as string;
-      const message = raw.replace(/\{time\}/g, new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' }));
+      const message = raw.replace(/\{time\}/g, new Date().toLocaleString('en-US', { timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone }));
       const result = await sendNotification(message, context.userId
       );
       return { output: result };

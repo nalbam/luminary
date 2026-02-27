@@ -33,7 +33,7 @@ export function getClient(): LLMClient {
   return _client;
 }
 
-// 테스트/핫스왑용 (env 변경 후 재초기화 필요 시)
+// For testing / hot-swap (re-initialize after env change)
 export function resetClient(): void {
   _client = null;
 }

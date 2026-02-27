@@ -83,7 +83,7 @@ function toAnthropicMessages(messages: ConversationMessage[]): Anthropic.Message
           input: tc.input,
         })),
       });
-      // 바로 다음이 tool_results이면 user 메시지로 묶음
+      // If the next message is tool_results, bundle them as a user message
       if (i + 1 < messages.length && messages[i + 1].role === 'tool_results') {
         const tr = messages[i + 1] as { role: 'tool_results'; results: LLMToolResult[] };
         result.push({

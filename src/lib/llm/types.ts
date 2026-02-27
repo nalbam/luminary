@@ -19,10 +19,10 @@ export interface LLMToolCall {
 
 export interface LLMToolResult {
   toolUseId: string;
-  content: string; // JSON.stringify된 결과
+  content: string; // JSON.stringify result
 }
 
-// provider-agnostic 내부 메시지 포맷
+// Provider-agnostic internal message format
 export type ConversationMessage =
   | { role: 'user'; content: string }
   | { role: 'assistant'; content: string }

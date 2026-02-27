@@ -68,9 +68,13 @@ export function ensureUserExists(userId = 'user_default'): User {
   const locale = process.env.DEFAULT_USER_LOCALE || 'en';
   const timezone = process.env.DEFAULT_USER_TIMEZONE || 'UTC';
 
+  const interests = process.env.DEFAULT_USER_INTERESTS
+    ? process.env.DEFAULT_USER_INTERESTS.split(',').map(s => s.trim()).filter(Boolean)
+    : [];
+
   const defaultPrefs: UserPreferences = {
     onboarded: false,
-    interests: [],
+    interests,
     agent: {
       name: process.env.DEFAULT_AGENT_NAME || 'vibemon-agent',
       personality: process.env.DEFAULT_AGENT_PERSONALITY ||

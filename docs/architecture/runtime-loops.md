@@ -103,18 +103,22 @@ runJob(jobId).catch(e => console.error('Job run error:', e));
 runJob(jobId):
   1. Fetch job from DB (throw if not found)
   2. UPDATE jobs SET status='running', started_at=NOW
-  3. If skill_id is set:
-     a. Fetch skill from DB
-     b. planSkill(name, goal, tools, input) → Plan { steps, reasoning }
+  3. If routine_id is set:
+     a. Fetch routine from DB
+     b. planRoutine(name, goal, tools, input) → Plan { steps, reasoning }
+        - Plan validation: unknown tool names cause plan failure (job → failed)
      c. Execute each step sequentially:
         - INSERT step_runs (tool_name, input, started_at)
         - getTool(step.toolName).run(input, { userId, jobId })
-          - If tool not found: record step error and continue (job not aborted)
+          - If tool not found: throw → job failed
           - If exception thrown: record step error and continue
+          - If all steps fail: job → 'failed'
         - UPDATE step_runs (output/error, completed_at)
      d. writeNote({ kind: 'summary', stability: 'volatile', ttlDays: 7 })
-  4. UPDATE jobs SET status='succeeded', result=JSON, completed_at=NOW
-  5. On exception: UPDATE jobs SET status='failed', error=msg
+  4. If tool_name is set (direct tool_call job):
+     a. getTool(tool_name).run(tool_input, { userId, jobId })
+  5. UPDATE jobs SET status='succeeded', result=JSON, completed_at=NOW
+  6. On exception: UPDATE jobs SET status='failed', error=msg
 ```
 
 ### Important Design Decisions
@@ -136,9 +140,10 @@ runJob(jobId):
 **Entry:** `startScheduler()` — called once from `src/instrumentation.ts` on server start
 
 ### Responsibilities
-- Polls the `schedules` table every 60 seconds
-- Calculates execution interval based on `last_run_at`
-- Calls `enqueueJob()` + `runJob()` when conditions are met
+- On boot and every 60 s, calls `syncSchedules()` to pick up new or modified schedule rows
+- Registers each enabled schedule as a `node-cron` task with the exact cron expression
+- Fires `enqueueJob()` + `runJob()` when the cron fires
+- Removes tasks for disabled/deleted schedules; re-registers when `cron_expr` changes
 
 ### Bootstrap
 
@@ -153,21 +158,15 @@ export async function register() {
 }
 ```
 
-### Cron Parser Limitations
+### Cron Expression Handling
 
-```typescript
-function parseCronInterval(cronExpr: string): number | null
+Uses `node-cron` (`cron.validate()` + `cron.schedule()`). All valid 5-field cron expressions are supported (UTC timezone). Invalid expressions are logged and skipped.
+
 ```
-
-Supported patterns:
-
-| Input | Returns (ms) |
-|-------|-------------|
-| `*/5 * * * *` | 300,000 (5 minutes) |
-| `*/30 * * * *` | 1,800,000 (30 minutes) |
-| `0 * * * *` | 3,600,000 (1 hour) |
-| `0 0 * * *` | 86,400,000 (1 day) |
-| Other | `null` → skip execution |
+*/5 * * * *   → every 5 minutes
+0 9 * * 1-5  → weekdays 9am UTC
+0 0 * * *    → daily midnight UTC
+```
 
 ### Duplicate Execution Prevention
 
@@ -178,16 +177,17 @@ export function startScheduler(): void {
   if (schedulerStarted) return;  // already started
   if (process.env.NEXT_PHASE === 'phase-production-build') return;  // skip during build
   schedulerStarted = true;
-  // ...
+  syncSchedules();
+  setInterval(syncSchedules, 60_000);  // re-sync every 60 s for runtime-added schedules
 }
 ```
 
-### Execution Decision Logic
+### Execution Logic
 
-```
-now - last_run_at >= interval → execute
-if last_run_at is not set → execute immediately
-```
+For each cron fire, the scheduler:
+1. Updates `schedules.last_run_at`
+2. For `action_type='tool_call'`: enqueues a job with no `routine_id`, sets `tool_name`/`tool_input` on the job row, then calls `runJob()` fire-and-forget
+3. For `action_type='routine'`: enqueues a job linked to `routine_id`, then calls `runJob()` fire-and-forget
 
 ---
 
@@ -201,7 +201,7 @@ if last_run_at is not set → execute immediately
 
 ### Responsibilities
 - Deletes expired memory notes
-- Batch-merges volatile notes older than 7 days
+- LLM-synthesizes volatile notes older than 7 days into concise stable summaries, grouped by userId
 
 ### Execution Order
 
@@ -211,15 +211,19 @@ if last_run_at is not set → execute immediately
      WHERE expires_at IS NOT NULL AND expires_at <= datetime('now')
    → Returns count of deleted rows
 
-2. getNotes({ limit: 100 })
-   → Filter volatile notes: stability='volatile' AND superseded_by IS NULL
-   → Filter notes older than 7 days: createdAt < 7 days ago
+2. getNotes({ limit: 200 })
+   → Filter: stability='volatile' AND superseded_by IS NULL
+   → Filter: createdAt < 7 days ago
+   → Group by userId (never mix notes from different users)
 
-3. If oldVolatile.length >= 3:
+3. Per userId group: if userNotes.length >= 3
    → Split into batches of 5
-   → For each batch, mergeNotes(batch.ids):
-     - Create new summary note (combined content)
-     - Mark merged notes with superseded_by = new note ID
+   → For each batch (length >= 2):
+     a. synthesizeNotes(batch contents) via LLM (summary prompt)
+        → Falls back to naive concatenation if LLM unavailable
+     b. writeNote({ kind: 'summary', stability: 'stable', synthesized content })
+     c. Mark each original note with superseded_by = new note ID
+     d. merged++
 
 4. return { pruned, merged, message }
 ```
@@ -229,7 +233,7 @@ if last_run_at is not set → execute immediately
 ```typescript
 interface MaintenanceResult {
   pruned: number;  // Number of expired notes deleted
-  merged: number;  // Number of batches merged (not note count)
+  merged: number;  // Number of batches synthesized (not note count)
   message: string; // Summary message
 }
 ```

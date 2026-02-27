@@ -91,18 +91,23 @@ import '../tools/my_tool';    // ← add here
 How to confirm the tool is registered correctly:
 
 ```bash
-# Create a job via API and run it immediately
-curl -X POST http://localhost:3000/api/jobs \
+# 1. Create a routine that uses my_tool, then run a job
+ROUTINE_ID=$(curl -s -X POST http://localhost:3000/api/routines \
   -H "Content-Type: application/json" \
-  -d '{
-    "skillId": null,
-    "triggerType": "manual",
-    "input": {},
-    "runNow": false
-  }'
+  -d '{"name":"Test my_tool","goal":"Run my_tool and report result","triggerType":"manual"}' \
+  | jq -r '.routine.id')
 
-# Create a skill that uses my_tool via Skill Planner and run the job
+# 2. Enqueue and run the job immediately (runNow: true)
+curl -s -X POST http://localhost:3000/api/jobs \
+  -H "Content-Type: application/json" \
+  -d "{\"routineId\": \"$ROUTINE_ID\", \"triggerType\": \"manual\", \"runNow\": true}" \
+  | jq '.jobId'
+
+# 3. Check the job result (replace JOB_ID)
+curl -s http://localhost:3000/api/jobs/JOB_ID | jq '{status: .job.status, steps: .steps}'
 ```
+
+> **Note:** `runNow: true` is required to execute the job immediately via the API. Without it, the job stays in `queued` state. The agent's `create_job` tool always runs immediately without needing this flag.
 
 ---
 
@@ -226,11 +231,11 @@ return { output: { key: 'val' } };
 
 ---
 
-## Relationship Between Skills and Tools
+## Relationship Between Routines and Tools
 
 ```mermaid
 graph LR
-    Skill[Skill\ngoal + tools array] -->|planSkill()| Planner[Skill Planner\nOpenAI]
+    Routine[Routine\ngoal + tools array] -->|planRoutine()| Planner[Routine Planner\nLLM]
     Planner -->|Plan.steps| Runner[Job Runner]
     Runner -->|getTool\(name\)| Registry[Tool Registry]
     Registry --> Tool1[summarize]
@@ -241,5 +246,5 @@ graph LR
     Registry --> ToolN[...]
 ```
 
-If a skill's `tools` field is an empty array, all tools are exposed to the Planner.
-To allow only specific tools, specify names explicitly: `tools: ["summarize", "remember"]`.
+If a routine's `tools` field is an empty array, all registered tools are exposed to the Planner.
+To restrict to specific tools, specify names explicitly: `tools: ["summarize", "remember"]`.

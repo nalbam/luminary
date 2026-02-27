@@ -165,13 +165,17 @@ const ids = await searchSimilar(queryVec, 15);  // top-15 relevant note IDs
 graph LR
     Text[Note content] -->|getEmbedding()| OAI[OpenAI\ntext-embedding-3-small\n1536 dimensions]
     OAI --> Vec[Float32Array]
-    Vec -->|storeEmbedding()| VT[vec_notes virtual table\nsqlite-vec]
+    Vec -->|storeEmbedding()| MAP[vec_note_map\nUUID↔INTEGER]
+    MAP -->|integer rowid| VT[vec_notes virtual table\nsqlite-vec]
 
     Query[Search query] -->|getEmbedding()| OAI2[OpenAI]
     OAI2 --> QVec[Query vector]
     QVec -->|searchSimilar()| VT
-    VT -->|L2 distance| NoteIDs[memory_notes.id list]
+    VT -->|L2 distance → rowids| MAP2[vec_note_map]
+    MAP2 -->|note_id UUIDs| NoteIDs[memory_notes.id list]
 ```
+
+**Note:** `vec0` virtual tables require INTEGER rowids. The `vec_note_map` table maps UUID note IDs to auto-increment integer rowids for storage and retrieval.
 
 ### API
 
@@ -179,21 +183,24 @@ graph LR
 // Generate embedding (OpenAI API call)
 async function getEmbedding(text: string): Promise<number[]>
 
-// Store vector
+// Store vector (fire-and-forget in writeNote())
 async function storeEmbedding(noteId: string, vector: number[]): Promise<void>
 
-// Search similar notes (L2 distance)
+// Search similar notes by L2 distance — returns UUID list
 async function searchSimilar(queryVector: number[], limit?: number): Promise<string[]>
-// → returns array of memory_notes.id
+// → returns array of memory_notes.id (UUIDs)
 ```
+
+### Integration with buildAgentContext
+
+`storeEmbedding()` is called automatically from `writeNote()` (fire-and-forget via `setImmediate`) when `OPENAI_API_KEY` is set. `searchSimilar()` is called from `buildAgentContext()` when a user message is available, enabling relevance-based note retrieval.
 
 ### Graceful Degradation
 
 When `sqlite-vec` fails to load or virtual table is not created:
-- `storeEmbedding()`: logs warning to console and returns (no error thrown)
-- `searchSimilar()`: logs warning to console and returns empty array
-
-**Current status:** `storeEmbedding()` / `searchSimilar()` are implemented but not yet called from `buildContextPack()`. Planned for future integration with the `_query` parameter.
+- `storeEmbedding()`: logs warning and returns silently (no error thrown)
+- `searchSimilar()`: logs warning and returns empty array
+- `buildAgentContext()` falls back to recency-based loading
 
 ---
 
@@ -207,7 +214,7 @@ When `sqlite-vec` fails to load or virtual table is not created:
 function writeNote(input: WriteNoteInput): MemoryNote
 
 interface WriteNoteInput {
-  kind: NoteKind;           // 'log' | 'summary' | 'rule' | 'soul'
+  kind: NoteKind;           // 'log' | 'summary' | 'rule' | 'soul' | 'agent' | 'user'
   content: string;
   scope?: string;           // default: 'user'
   userId?: string;
@@ -251,9 +258,9 @@ Called by Maintenance Loop. Deletes by `expires_at <= NOW` condition.
 function mergeNotes(ids: string[]): MemoryNote | null
 ```
 
-- Merges 2+ notes into a single `summary` note
+- Merges 2+ notes into a single `summary` note via naive concatenation
 - Marks original notes with `superseded_by = new note ID`
-- Called by Maintenance Loop in batches of 5
+- Available as a utility but **not used by the Maintenance Loop** directly; the Maintenance Loop uses `synthesizeNotes()` (LLM-powered synthesis) + `writeNote()` instead
 
 ---
 
@@ -263,10 +270,12 @@ function mergeNotes(ids: string[]): MemoryNote | null
 
 | Situation | Who writes | kind | stability | ttlDays |
 |-----------|-----------|------|-----------|---------|
-| User mentions "remember/note" | Interactive Loop | `log` | `volatile` | 30 |
-| Job completed | Job Runner | `summary` | `volatile` | 7 |
 | Agent tool `remember` called | Agent Tool | `log` (default) | `stable` | none |
+| Agent uses 1+ tools in a session | Agent Loop (auto) | `summary` | `volatile` | 7 |
+| Job completed | Job Runner | `summary` | `volatile` | 7 |
 | Agent tool `update_soul` called | Agent Tool | `soul` | `permanent` | none |
+| Server start / settings save | `ensureIdentityExists()` | `agent`, `soul`, `user` | `permanent` | none |
+| Maintenance Loop synthesizes old notes | Maintenance Loop | `summary` | `stable` | none |
 
 ### Extension Points
 

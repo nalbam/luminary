@@ -174,7 +174,7 @@ CREATE TABLE IF NOT EXISTS step_runs (
 
 ### `memory_notes`
 
-Agent's persistent memory. Categorized into four kinds: `log`, `summary`, `rule`, `soul`.
+Agent's persistent memory. Categorized into six kinds: `log`, `summary`, `rule`, `soul`, `agent`, `user`.
 
 ```sql
 CREATE TABLE IF NOT EXISTS memory_notes (
@@ -235,15 +235,24 @@ interface MemoryNote {
 
 ## Vector Embeddings (sqlite-vec)
 
-When the `sqlite-vec` extension is loaded, virtual tables are used for vector search.
+When the `sqlite-vec` extension is loaded, two additional tables are created at runtime inside `getDb()` (NOT in `schema.sql`, because the virtual table DDL requires the extension to be loaded first):
 
 ```sql
--- sqlite-vec virtual table (not in schema file, created at runtime)
--- rowid = memory_notes.id
-vec_notes (embedding FLOAT[1536])  -- text-embedding-3-small dimensions
+-- sqlite-vec virtual table: stores float32 embeddings (1536-dim for text-embedding-3-small)
+CREATE VIRTUAL TABLE IF NOT EXISTS vec_notes USING vec0(embedding float[1536]);
+
+-- Mapping table: vec0 requires INTEGER rowids, but memory_notes uses UUID strings
+CREATE TABLE IF NOT EXISTS vec_note_map (
+  rowid  INTEGER PRIMARY KEY AUTOINCREMENT,
+  note_id TEXT UNIQUE NOT NULL   -- memory_notes.id (UUID)
+);
 ```
 
-**Graceful Degradation:** If `sqlite-vec` fails to load, vector features are disabled and fall back to plain text queries. No error is thrown.
+**Why `vec_note_map`?** sqlite-vec's `vec0` virtual table only supports INTEGER rowids. `vec_note_map` maintains a stable UUID → integer mapping so embeddings can be looked up and returned as note UUIDs.
+
+**Do NOT add these tables to `schema.sql`.** They are created only after `sqlite-vec` is loaded.
+
+**Graceful Degradation:** If `sqlite-vec` fails to load, vector features are disabled and fall back to recency-based note retrieval. No error is thrown.
 
 ---
 

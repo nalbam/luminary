@@ -25,6 +25,8 @@ if (fs.existsSync(schemaPath)) {
 
 > **MUST:** Modify **both** `schema.sql` and the inline schema in `index.ts`.
 
+> **Exception:** `vec_notes` (sqlite-vec virtual table) and `vec_note_map` are intentionally **NOT** in `schema.sql`. They require `sqlite-vec` to be loaded first and are created separately in `getDb()` after the extension load. Do not add them to `schema.sql`.
+
 ---
 
 ## Adding a New Table

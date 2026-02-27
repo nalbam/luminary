@@ -61,10 +61,10 @@ POST /api/chat
   → handleUserMessage (loops/interactive.ts)
     → ensureUserExists (memory/users.ts)
     → runAgentLoop (agent/loop.ts)
-      → ensureSoulExists (agent/soul.ts)       # initialize/refresh soul
+      → ensureIdentityExists (agent/soul.ts)   # sync agent/soul/user identity notes
       → saveUserMessage (memory/conversations.ts)
       → getConversationHistory               # multi-turn history
-      → buildAgentContext (agent/context.ts)    # soul → rule → summary, message-aware semantic retrieval
+      → buildAgentContext (agent/context.ts)    # agent→soul→OS→user→rules→summaries, semantic retrieval
       → LLM call with 21 agent tools
       → if tool_calls → executeAgentTool() → saveToolResults()
       → if text → saveAssistantMessage() → auto-summary (1+ tools) → return
@@ -90,7 +90,7 @@ Eight tables:
 - `schedules` — cron-based triggers; `action_type='routine'` or `action_type='tool_call'`
 - `jobs` — job state machine (queued → running → succeeded/failed/canceled); links to `routine_id` or `tool_name`
 - `step_runs` — individual tool call records within a job
-- `memory_notes` — four kinds: `log`, `summary`, `rule`, `soul`
+- `memory_notes` — six kinds: `log`, `summary`, `rule`, `soul`, `agent`, `user`
 - `conversations` — multi-turn chat history (user/assistant/assistant_tool_calls/tool_results)
 
 The `memory_notes` table supports TTL via `expires_at`, stability levels (`volatile`/`stable`/`permanent`), and supersession via `superseded_by`. Soul notes are permanent agent identity notes.
@@ -142,17 +142,17 @@ Register new tools by importing the tool file in `runner.ts` (self-registers via
 
 ### Memory System
 
-- `src/lib/memory/notes.ts` — `NoteKind = 'log' | 'summary' | 'rule' | 'soul'`
+- `src/lib/memory/notes.ts` — `NoteKind = 'log' | 'summary' | 'rule' | 'soul' | 'agent' | 'user'`
 - `src/lib/memory/conversations.ts` — multi-turn conversation history (MAX_ROWS=80)
 - `src/lib/memory/users.ts` — `ensureUserExists()` initializes default user on first call; `getUser()`, `updateUser()`
-- `src/lib/agent/context.ts` — `buildAgentContext()` with soul→rule→summary priority
-- `src/lib/agent/soul.ts` — `ensureSoulExists()` initializes default soul on first call (Think→Remember→Execute identity)
-- Soul notes: always filter by `!n.supersededBy` — old souls must not appear in system prompt
+- `src/lib/agent/context.ts` — `buildAgentContext()` with agent→soul→OS→user→rules→summaries priority; semantic search when embeddings available
+- `src/lib/agent/soul.ts` — `ensureIdentityExists()` syncs all 3 identity notes (agent/soul/user) per request; `ensureSoulExists` is a backward-compat alias
+- Identity notes (`soul`, `agent`, `user`): always filter by `!n.supersededBy` — superseded notes must not appear in system prompt
 - User init: `handleUserMessage()` calls `ensureUserExists(userId)` before `runAgentLoop()`
 
 ### Vector Embeddings (`src/lib/memory/embeddings.ts`)
 
-Uses `sqlite-vec` for storing/querying embeddings. Gracefully degrades if `sqlite-vec` is unavailable. Embeddings use OpenAI `text-embedding-3-small`. The `vec_notes` virtual table is used for vector similarity search.
+Uses `sqlite-vec` for storing/querying embeddings. Gracefully degrades if `sqlite-vec` is unavailable. Embeddings use OpenAI `text-embedding-3-small`. Two runtime-only tables: `vec_notes` (virtual, stores float[1536]) and `vec_note_map` (UUID↔INTEGER rowid mapping). These are NOT in `schema.sql` — created separately in `getDb()` after sqlite-vec load.
 
 ### Event Store (`src/lib/events/store.ts`)
 

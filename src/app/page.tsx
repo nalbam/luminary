@@ -32,8 +32,8 @@ export default function ChatPage() {
       .then(([userData, historyData]) => {
         const user = userData.user;
         const prefs = user?.preferences ?? {};
-        // Require agent name — users with onboarded:true but no agent config see onboarding again
-        const isOnboarded = !!prefs.onboarded && !!prefs.agent?.name;
+        // Show onboarding only when agent name is missing — optional fields don't block entry
+        const isOnboarded = !!prefs.agent?.name;
         const aName = prefs.agent?.name || 'vibemon-agent';
         const pName = user?.preferredName || '';
 

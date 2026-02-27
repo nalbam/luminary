@@ -120,6 +120,13 @@ export async function runAgentLoop(
     }
 
     if (response.type === 'tool_calls') {
+      // Guard: LLM returned tool_calls with empty array — no progress possible
+      if (response.toolCalls.length === 0) {
+        const fallback = 'Task complete.';
+        saveAssistantMessage(userId, fallback);
+        return { response: fallback };
+      }
+
       saveAssistantToolCalls(userId, response.toolCalls);
       history.push({ role: 'assistant_tool_calls', toolCalls: response.toolCalls });
 

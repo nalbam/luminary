@@ -19,8 +19,8 @@ export async function storeEmbedding(noteId: string, vector: number[]): Promise<
     db.prepare(
       `INSERT OR REPLACE INTO vec_notes(rowid, embedding) VALUES (?, ?)`
     ).run(row.rowid, Buffer.from(new Float32Array(vector).buffer));
-  } catch {
-    // Silently ignore — sqlite-vec not available or insertion failed
+  } catch (e) {
+    console.warn('storeEmbedding failed (sqlite-vec unavailable or error):', String(e));
   }
 }
 
@@ -40,7 +40,8 @@ export async function searchSimilar(queryVector: number[], limit = 5): Promise<s
     ).all(...rows.map(r => r.rowid)) as Array<{ note_id: string }>;
 
     return mapped.map(r => r.note_id);
-  } catch {
+  } catch (e) {
+    console.warn('searchSimilar failed (sqlite-vec unavailable or error):', String(e));
     return [];
   }
 }

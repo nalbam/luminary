@@ -1,10 +1,10 @@
-# luminary
+# Luminary
 
 A local-first proactive agent runtime for macOS built with Next.js, Node.js, SQLite, sqlite-vec, and Tailwind CSS.
 
 ## Overview
 
-luminary moves beyond request-response chatbots to become an always-on system that can do real work, remember what it did, and reuse that memory to serve users better over time.
+Luminary moves beyond request-response chatbots to become an always-on system that can do real work, remember what it did, and reuse that memory to serve users better over time.
 
 ## Features
 

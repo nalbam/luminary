@@ -56,8 +56,8 @@ graph LR
 
 ### Execution Order
 ```
-1. ensureSoulExists(userId)  ← initialize soul on first call
-2. buildAgentContext(userId) ← soul → rule → summary priority
+1. ensureIdentityExists(userId)  ← sync agent/soul/user identity notes
+2. buildAgentContext(userId) ← agent → soul → OS → user → rules → summaries priority
 3. runAgentLoop(message, userId, systemPrompt)
    a. saveUserMessage(userId, message)
    b. getConversationHistory(userId)
@@ -130,6 +130,9 @@ runJob(jobId):
   import '../tools/remember';
   import '../tools/search';
   import '../tools/list_memory';
+  import '../tools/bash';
+  import '../tools/fetch_url';
+  import '../tools/notify';
   ```
 
 ---

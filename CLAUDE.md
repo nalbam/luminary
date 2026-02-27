@@ -41,7 +41,7 @@ The SQLite database is auto-created at `data/luminary.db` on first run. The `dat
 
 ## Architecture
 
-This is a **Next.js 14+ App Router** application implementing an autonomous AI agent runtime. `better-sqlite3` and `sqlite-vec` are declared as `serverExternalPackages` in `next.config.ts` because they require native Node.js bindings.
+This is a **Next.js 16 App Router** application implementing an autonomous AI agent runtime. `better-sqlite3` and `sqlite-vec` are declared as `serverExternalPackages` in `next.config.ts` because they require native Node.js bindings.
 
 ### Four Runtime Loops (`src/lib/loops/`)
 

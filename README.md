@@ -13,14 +13,14 @@ Luminary moves beyond request-response chatbots to become an always-on system th
 - **Skills / Integrations** – Connect external services (Telegram, Slack, Webhook, etc.)
 - **Job Runner** – Async job execution with state machine (queued → running → succeeded/failed/canceled)
 - **Scheduler** – Cron-based triggering; runs a routine or a direct tool call
-- **Memory System** – Four kinds of notes (log, summary, rule, soul) with semantic recall via sqlite-vec
+- **Memory System** – Six kinds of notes (log, summary, rule, soul, agent, user) with semantic recall via sqlite-vec
 - **21 Agent Tools** – remember, run_bash, web_search, fetch_url, notify, create_routine, create_schedule, update_schedule, and more
 - **Maintenance Loop** – Periodic memory pruning, merging, and refreshing
 - **Event Store** – Append-only JSONL event logging for auditability
 
 ## Tech Stack
 
-- [Next.js 14+](https://nextjs.org/) with App Router
+- [Next.js 16](https://nextjs.org/) with App Router
 - [TypeScript](https://www.typescriptlang.org/)
 - [Tailwind CSS](https://tailwindcss.com/)
 - [better-sqlite3](https://github.com/WiseLibs/better-sqlite3) for SQLite
@@ -101,8 +101,10 @@ data/                     # Local runtime data (git-ignored)
 
 ### Memory Model
 
-Four kinds of memory notes:
-- **Soul** – Agent identity and principles (permanent, singleton per user)
+Six kinds of memory notes:
+- **Soul** – 7-step reasoning protocol and behavioral principles (permanent)
+- **Agent** – Agent persona: name, personality, speaking style (permanent, user-configurable)
+- **User** – User profile: name, timezone, interests (permanent, synced from users table)
 - **Rule** – Reusable knowledge with confidence, stability, TTL, and evidence references
 - **Summary** – Session/job outcomes written automatically after tool use
 - **Log** – Raw event records for audit and replay

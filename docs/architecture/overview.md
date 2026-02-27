@@ -2,7 +2,7 @@
 
 ## System Architecture
 
-Luminary is a local-first agent runtime built on Next.js 14+ App Router. Four independent runtime loops operate with their own triggers, managing state through a shared SQLite DB and JSONL event store.
+Luminary is a local-first agent runtime built on Next.js 16 App Router. Four independent runtime loops operate with their own triggers, managing state through a shared SQLite DB and JSONL event store.
 
 ```mermaid
 graph TB
@@ -79,7 +79,7 @@ graph TB
 | Tool Registry | `lib/tools/registry.ts` | Defines `Tool` interface, name-based tool lookup map |
 | Memory Notes | `lib/memory/notes.ts` | `memory_notes` CRUD, TTL expiration, note merging |
 | Agent Context | `lib/agent/context.ts` | Builds system prompt: soul → rules → summaries, with semantic retrieval |
-| Soul | `lib/agent/soul.ts` | Agent identity notes; `ensureSoulExists()` initializes/refreshes on each request |
+| Soul | `lib/agent/soul.ts` | Agent identity notes; `ensureIdentityExists()` syncs all 3 identity notes (agent/soul/user) per request |
 | Embeddings | `lib/memory/embeddings.ts` | `sqlite-vec` vector storage and search, OpenAI `text-embedding-3-small` |
 | Event Store | `lib/events/store.ts` | Immutable JSONL audit log writing and reading |
 | Input Adapter | `lib/adapters/input/web.ts` | HTTP request body → `WebInputMessage` type conversion |
@@ -103,7 +103,7 @@ sequenceDiagram
     API->>IL: handleUserMessage(message, userId)
     IL->>AL: runAgentLoop(message, userId)
 
-    AL->>DB: ensureSoulExists() — init/refresh soul note
+    AL->>DB: ensureIdentityExists() — sync agent/soul/user identity notes
     AL->>CTX: buildAgentContext(userId, message)
     CTX->>DB: soul + rules + summaries (semantic retrieval if embeddings available)
     DB-->>CTX: MemoryNote[]
@@ -113,7 +113,7 @@ sequenceDiagram
     AL->>EV: appendEvent({ type: "user_message" })
 
     loop up to 10 iterations
-        AL->>LLM: complete({ system, messages, tools[20] })
+        AL->>LLM: complete({ system, messages, tools[21] })
         LLM-->>AL: tool_calls OR text
 
         alt tool_calls

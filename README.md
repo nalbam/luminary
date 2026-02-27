@@ -1,10 +1,10 @@
-# vibemon-agent
+# luminary
 
 A local-first proactive agent runtime for macOS built with Next.js, Node.js, SQLite, sqlite-vec, and Tailwind CSS.
 
 ## Overview
 
-vibemon-agent moves beyond request-response chatbots to become an always-on system that can do real work, remember what it did, and reuse that memory to serve users better over time.
+luminary moves beyond request-response chatbots to become an always-on system that can do real work, remember what it did, and reuse that memory to serve users better over time.
 
 ## Features
 
@@ -38,8 +38,8 @@ vibemon-agent moves beyond request-response chatbots to become an always-on syst
 ### Installation
 
 ```bash
-git clone https://github.com/nalbam/vibemon-agent
-cd vibemon-agent
+git clone https://github.com/nalbam/luminary
+cd luminary
 npm install
 cp .env.example .env.local
 # Edit .env.local and add your OPENAI_API_KEY
@@ -86,7 +86,7 @@ src/
     adapters/             # Input adapter (web.ts)
 
 data/                     # Local runtime data (git-ignored)
-  vibemon.db              # SQLite database
+  luminary.db             # SQLite database
   events/                 # JSONL event logs
 ```
 

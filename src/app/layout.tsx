@@ -3,7 +3,7 @@ import './globals.css';
 import Navigation from '@/components/Navigation';
 
 export const metadata: Metadata = {
-  title: 'vibemon — agent runtime',
+  title: 'luminary — agent runtime',
   description: 'A local-first proactive agent runtime',
 };
 

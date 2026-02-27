@@ -213,7 +213,7 @@ const items = db.prepare('SELECT ...').all();
 
 // NEVER: direct instantiation
 import Database from 'better-sqlite3';
-const db = new Database('data/vibemon.db');   // ← forbidden
+const db = new Database('data/luminary.db');   // ← forbidden
 ```
 
 ### 6. JSON Column Handling

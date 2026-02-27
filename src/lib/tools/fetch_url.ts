@@ -33,7 +33,7 @@ export async function fetchUrl(url: string, maxLength = 8000): Promise<string> {
   }
 
   const response = await fetch(url, {
-    headers: { 'User-Agent': 'vibemon-agent/1.0' },
+    headers: { 'User-Agent': 'luminary/1.0' },
     signal: AbortSignal.timeout(15000),
   });
 

@@ -74,10 +74,10 @@ export interface MyNewItem {
 
 SQLite supports `ADD COLUMN`, but `CREATE TABLE IF NOT EXISTS` does not add new columns to existing tables. **Already-created databases require migration.**
 
-### Development Environment (when data/vibemon.db can be deleted)
+### Development Environment (when data/luminary.db can be deleted)
 
 1. Add the new column to both `schema.sql` and `index.ts` inline
-2. Delete `data/vibemon.db`
+2. Delete `data/luminary.db`
 3. Restart with `npm run dev` — DB is recreated with the new schema
 
 ```sql
@@ -153,11 +153,11 @@ const config = JSON.parse(row.config || '{}');
 `getDb()` sets `PRAGMA journal_mode = WAL` on DB initialization. When making schema changes in WAL mode:
 
 - Schema changes (`CREATE TABLE`, `ALTER TABLE`) work normally in WAL mode.
-- When deleting `data/vibemon.db`, also delete `data/vibemon.db-wal` and `data/vibemon.db-shm`.
+- When deleting `data/luminary.db`, also delete `data/luminary.db-wal` and `data/luminary.db-shm`.
 
 ```bash
 # Delete all three files when resetting the DB
-rm -f data/vibemon.db data/vibemon.db-wal data/vibemon.db-shm
+rm -f data/luminary.db data/luminary.db-wal data/luminary.db-shm
 ```
 
 ---

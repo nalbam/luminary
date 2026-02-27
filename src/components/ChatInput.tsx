@@ -50,7 +50,7 @@ export default function ChatInput({ onSend, disabled }: ChatInputProps) {
         onChange={e => setValue(e.target.value)}
         onKeyDown={handleKeyDown}
         disabled={disabled}
-        placeholder="Message vibemon…"
+        placeholder="Message Lumi…"
         className="flex-1 bg-transparent text-sm resize-none focus:outline-none disabled:opacity-40 leading-relaxed"
         style={{ color: '#e2e8f0', caretColor: '#8b5cf6', minHeight: '24px' }}
         rows={1}

@@ -31,7 +31,7 @@ export async function doSearch(query: string): Promise<Array<{ title: string; ur
   try {
     const res = await fetch(
       `https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&no_html=1&skip_disambig=1`,
-      { headers: { 'User-Agent': 'vibemon-agent/1.0' } }
+      { headers: { 'User-Agent': 'luminary/1.0' } }
     );
     if (!res.ok) return [];
 

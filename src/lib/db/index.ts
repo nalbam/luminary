@@ -12,7 +12,7 @@ export function getDb(): Database.Database {
     fs.mkdirSync(dataDir, { recursive: true });
   }
 
-  const dbPath = path.join(dataDir, 'vibemon.db');
+  const dbPath = path.join(dataDir, 'luminary.db');
   db = new Database(dbPath);
 
   // Enable WAL mode for better performance

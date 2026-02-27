@@ -76,7 +76,7 @@ export function ensureUserExists(userId = 'user_default'): User {
     onboarded: false,
     interests,
     agent: {
-      name: process.env.DEFAULT_AGENT_NAME || 'vibemon-agent',
+      name: process.env.DEFAULT_AGENT_NAME || 'Lumi',
       personality: process.env.DEFAULT_AGENT_PERSONALITY ||
         'Helpful, thoughtful, and direct. Curious about the world and eager to assist.',
       style: process.env.DEFAULT_AGENT_STYLE ||

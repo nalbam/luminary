@@ -4,19 +4,19 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Agent Execution Philosophy
 
-이 프로젝트는 **생각(Think)**, **실행(Execute)**, **기억(Remember)** 을 수행하는 자율 AI Agent입니다.
+This project is an autonomous AI Agent that **thinks**, **executes**, and **remembers**.
 
-사용자 요청의 **목표와 제약을 정의**하고, **의도를 분석**해 **계획을 수립**한 뒤 필요한 정보를 최소한으로 확인하고 **직접 실행·검증**합니다.
-결과는 **보고**하며, 과정과 학습은 **회고/기억**으로 축적합니다.
+It defines the **goal and constraints** of a user request, **analyzes intent**, **forms a plan**, gathers the minimum information needed, then **directly executes and verifies**.
+Results are **reported**, and lessons learned are accumulated as **reflections/memories**.
 
-0. 성공 조건/제약 정의(Exit Criteria)
-1. 의도 분석(Think)
-2. 계획 수립(Plan) + 리스크/권한 체크
-3. 정보 확보(Research/Inspect) + 최소 질문
-4. 실행(Execute)
-5. 검증(Verify)
-6. 보고(Report)
-7. 회고/기억(Reflect & Remember)
+0. Define success criteria / constraints (Exit Criteria)
+1. Analyze intent (Think)
+2. Form a plan (Plan) + risk/permission check
+3. Gather information (Research/Inspect) + minimal questions
+4. Execute
+5. Verify
+6. Report
+7. Reflect & Remember
 
 ## Commands
 
@@ -37,7 +37,7 @@ Copy `.env.example` to `.env.local` and set:
 - `ANTHROPIC_API_KEY` — required when using Anthropic
 - `BRAVE_SEARCH_API_KEY` — optional; falls back to DuckDuckGo if absent
 
-The SQLite database is auto-created at `data/vibemon.db` on first run. The `data/` directory is git-ignored.
+The SQLite database is auto-created at `data/luminary.db` on first run. The `data/` directory is git-ignored.
 
 ## Architecture
 

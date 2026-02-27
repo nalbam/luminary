@@ -17,7 +17,7 @@ export default function ChatPage() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(false);
   const [onboarded, setOnboarded] = useState<boolean | null>(null); // null = loading
-  const [agentName, setAgentName] = useState('vibemon-agent');
+  const [agentName, setAgentName] = useState('Lumi');
   const [preferredName, setPreferredName] = useState('');
   const [onboardingInitial, setOnboardingInitial] = useState<Partial<OnboardingData>>({});
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -34,7 +34,7 @@ export default function ChatPage() {
         const prefs = user?.preferences ?? {};
         // Show onboarding only when agent name is missing — optional fields don't block entry
         const isOnboarded = !!prefs.agent?.name;
-        const aName = prefs.agent?.name || 'vibemon-agent';
+        const aName = prefs.agent?.name || 'Lumi';
         const pName = user?.preferredName || '';
 
         setAgentName(aName);

@@ -87,7 +87,7 @@ CREATE TABLE IF NOT EXISTS step_runs (
 );
 
 -- NOTE: To apply schema changes, delete and recreate the database:
--- rm -f data/vibemon.db data/vibemon.db-wal data/vibemon.db-shm
+-- rm -f data/luminary.db data/luminary.db-wal data/luminary.db-shm
 
 -- memory_notes table
 CREATE TABLE IF NOT EXISTS memory_notes (

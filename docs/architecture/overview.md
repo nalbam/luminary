@@ -42,7 +42,7 @@ graph TB
     end
 
     subgraph Storage["Storage"]
-        DB[(SQLite\ndata/vibemon.db)]
+        DB[(SQLite\ndata/luminary.db)]
         JSONL[JSONL\ndata/events/YYYY-MM-DD/userId.jsonl]
     end
 

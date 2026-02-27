@@ -2,7 +2,7 @@
 
 ## SQLite Database
 
-**Path:** `data/vibemon.db`
+**Path:** `data/luminary.db`
 **Access:** `getDb()` singleton (`src/lib/db/index.ts`) — MUST
 **Configuration:** WAL mode (`PRAGMA journal_mode = WAL`)
 **Schema:** `src/lib/db/schema.sql` — automatically executed via `db.exec(schema)` on app start (idempotent)

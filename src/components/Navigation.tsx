@@ -27,9 +27,9 @@ export default function Navigation() {
             className="w-7 h-7 rounded-lg flex items-center justify-center text-sm font-bold"
             style={{ background: 'linear-gradient(135deg, #7c3aed, #2563eb)', boxShadow: '0 0 12px rgba(124,58,237,0.5)' }}
           >
-            V
+            L
           </div>
-          <span className="gradient-text font-bold text-base tracking-tight">vibemon</span>
+          <span className="gradient-text font-bold text-base tracking-tight">luminary</span>
           <span
             className="text-xs px-1.5 py-0.5 rounded font-mono"
             style={{ background: 'rgba(139,92,246,0.12)', color: '#a78bfa', border: '1px solid rgba(139,92,246,0.2)' }}

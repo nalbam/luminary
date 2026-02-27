@@ -157,8 +157,13 @@ Two approaches depending on complexity:
 // Who the user is: name, timezone, interests. User-configurable.
 
 export function buildUserContent(user: User): string {
-  const name = user.preferredName || user.displayName;
-  const lines: string[] = ['## User Profile', `Name: ${name}`];
+  const lines: string[] = ['## User Profile'];
+  if (user.displayName) {
+    lines.push(`Name: ${user.displayName}`);
+  }
+  if (user.preferredName) {
+    lines.push(`Preferred Name: ${user.preferredName}`);
+  }
   if (user.timezone && user.timezone !== 'UTC') {
     lines.push(`Timezone: ${user.timezone}`);
   }
@@ -192,7 +197,7 @@ function upsertNote(
   }
 
   const existing = db.prepare(
-    `SELECT id, content FROM memory_notes WHERE kind = ? AND user_id = ? LIMIT 1`
+    `SELECT id, content FROM memory_notes WHERE kind = ? AND user_id = ? AND superseded_by IS NULL LIMIT 1`
   ).get(kind, userId) as { id: string; content: string } | undefined;
 
   if (!existing) {

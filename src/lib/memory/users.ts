@@ -65,20 +65,21 @@ export function ensureUserExists(userId = 'user_default'): User {
   const defaultPrefs: UserPreferences = { onboarded: false, interests: [] };
 
   const displayName = process.env.DEFAULT_USER_NAME || 'User';
+  const preferredName = process.env.DEFAULT_USER_PREFERRED_NAME || null;
   const locale = process.env.DEFAULT_USER_LOCALE || 'en';
   const timezone = process.env.DEFAULT_USER_TIMEZONE || 'UTC';
 
   db.prepare(`
     INSERT INTO users (id, display_name, preferred_name, locale, timezone, preferences, created_at, updated_at)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(userId, displayName, null, locale, timezone, JSON.stringify(defaultPrefs), now, now);
+  `).run(userId, displayName, preferredName, locale, timezone, JSON.stringify(defaultPrefs), now, now);
 
   console.log('User initialized:', userId);
 
   return {
     id: userId,
     displayName,
-    preferredName: null,
+    preferredName,
     locale,
     timezone,
     preferences: defaultPrefs,

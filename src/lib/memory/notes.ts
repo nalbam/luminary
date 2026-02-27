@@ -90,7 +90,7 @@ export function writeNote(input: WriteNoteInput): MemoryNote {
         await storeEmbedding(note.id, vector);
       } catch (e) {
         // Embeddings are optional — graceful degradation, but log for observability
-        console.debug('Embedding store failed (non-critical):', String(e));
+        console.warn('Embedding store failed (non-critical):', String(e));
       }
     });
   }

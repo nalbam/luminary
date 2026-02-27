@@ -17,6 +17,8 @@ export function getDb(): Database.Database {
 
   // Enable WAL mode for better performance
   db.pragma('journal_mode = WAL');
+  // Wait up to 30 s when the DB is locked by a concurrent writer (scheduler + job runner)
+  db.pragma('busy_timeout = 30000');
 
   // Try to load sqlite-vec
   try {

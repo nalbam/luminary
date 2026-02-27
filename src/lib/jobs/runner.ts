@@ -90,14 +90,22 @@ export async function runJob(jobId: string): Promise<void> {
 
         try {
           const toolResult = await tool.run(step.input, { userId, jobId });
-          db.prepare('UPDATE step_runs SET output = ?, artifact_path = ?, completed_at = ? WHERE id = ?')
-            .run(
-              JSON.stringify(toolResult.output),
-              toolResult.artifactPath || null,
-              new Date().toISOString(),
-              stepId
-            );
-          stepResults.push(toolResult.output);
+          // Check tool-level error field (tool returned {output: null, error: "..."})
+          if (toolResult.error) {
+            const errMsg = `Tool "${step.toolName}" returned error: ${toolResult.error}`;
+            db.prepare('UPDATE step_runs SET error = ?, completed_at = ? WHERE id = ?')
+              .run(errMsg, new Date().toISOString(), stepId);
+            stepResults.push({ error: errMsg });
+          } else {
+            db.prepare('UPDATE step_runs SET output = ?, artifact_path = ?, completed_at = ? WHERE id = ?')
+              .run(
+                JSON.stringify(toolResult.output),
+                toolResult.artifactPath || null,
+                new Date().toISOString(),
+                stepId
+              );
+            stepResults.push(toolResult.output);
+          }
         } catch (e) {
           const errMsg = String(e);
           db.prepare('UPDATE step_runs SET error = ?, completed_at = ? WHERE id = ?')
@@ -108,14 +116,16 @@ export async function runJob(jobId: string): Promise<void> {
 
       result = { plan: plan.reasoning, steps: stepResults };
 
-      // If every step ended in an error, treat the job as failed rather than succeeded.
+      // If every step ended in an error (or null output), treat the job as failed.
       const allFailed =
         stepResults.length > 0 &&
         stepResults.every(
-          s => s !== null && typeof s === 'object' && 'error' in (s as object)
+          s => s === null || (typeof s === 'object' && s !== null && 'error' in (s as object))
         );
       if (allFailed) {
-        const errors = (stepResults as Array<{ error: string }>).map(s => s.error).join('; ');
+        const errors = stepResults.map(s =>
+          s === null ? 'null output' : (s as { error?: string }).error || 'unknown error'
+        ).join('; ');
         const errMsg = `All steps failed: ${errors}`;
         console.error(`Job ${jobId} all steps failed:`, errors);
         db.prepare('UPDATE jobs SET status = ?, result = ?, error = ?, completed_at = ? WHERE id = ?')
@@ -150,6 +160,13 @@ export async function runJob(jobId: string): Promise<void> {
       `).run(stepId, jobId, toolName, JSON.stringify(toolInput), stepStart);
 
       const toolResult = await tool.run(toolInput, { userId, jobId });
+      // Check tool-level error field for direct tool_call jobs
+      if (toolResult.error) {
+        const errMsg = `Tool "${toolName}" returned error: ${toolResult.error}`;
+        db.prepare('UPDATE step_runs SET error = ?, completed_at = ? WHERE id = ?')
+          .run(errMsg, new Date().toISOString(), stepId);
+        throw new Error(errMsg);
+      }
       db.prepare('UPDATE step_runs SET output = ?, artifact_path = ?, completed_at = ? WHERE id = ?')
         .run(
           JSON.stringify(toolResult.output),

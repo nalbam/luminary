@@ -56,6 +56,9 @@ What tools are needed? In what order? What could go wrong?
 ### Step 3: Research / Inspect
 Gather the information needed to execute correctly.
 - Run \`ls\`, \`cat\`, \`ps aux\`, \`df -h\`, or any read-only command to inspect first.
+- **NEVER say "not found" or "I cannot" without running run_bash to check first.**
+  ✗ "vibemon-agent 디렉토리를 찾을 수 없습니다."
+  ✓ Run \`find ~ -name "vibemon-agent" -type d 2>/dev/null | head -5\` → show real results.
 - If critical info is missing → ask ONE specific, focused question. Do not guess.
 - If everything is clear → proceed immediately. Don't over-ask.
 

@@ -19,6 +19,7 @@ export default function ChatPage() {
   const [onboarded, setOnboarded] = useState<boolean | null>(null); // null = loading
   const [agentName, setAgentName] = useState('vibemon-agent');
   const [preferredName, setPreferredName] = useState('');
+  const [onboardingInitial, setOnboardingInitial] = useState<Partial<OnboardingData>>({});
   const bottomRef = useRef<HTMLDivElement>(null);
   const isInitialLoad = useRef(true);
 
@@ -39,6 +40,20 @@ export default function ChatPage() {
         setAgentName(aName);
         setPreferredName(pName);
         setOnboarded(isOnboarded);
+
+        if (!isOnboarded) {
+          setOnboardingInitial({
+            displayName: user?.displayName || '',
+            preferredName: pName,
+            timezone: user?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
+            interests: prefs.interests || [],
+            agent: {
+              name: prefs.agent?.name || aName,
+              personality: prefs.agent?.personality || '',
+              style: prefs.agent?.style || '',
+            },
+          });
+        }
 
         if (isOnboarded) {
           const history: Message[] = (historyData.messages ?? []).map(
@@ -150,7 +165,7 @@ export default function ChatPage() {
     <>
       {/* Onboarding modal */}
       {onboarded === false && (
-        <OnboardingModal onComplete={handleOnboardingComplete} />
+        <OnboardingModal onComplete={handleOnboardingComplete} initialData={onboardingInitial} />
       )}
 
       <div className="flex flex-col h-[calc(100vh-56px)]">

@@ -62,12 +62,23 @@ export function ensureUserExists(userId = 'user_default'): User {
   if (existing) return rowToUser(existing);
 
   const now = new Date().toISOString();
-  const defaultPrefs: UserPreferences = { onboarded: false, interests: [] };
 
   const displayName = process.env.DEFAULT_USER_NAME || 'User';
   const preferredName = process.env.DEFAULT_USER_PREFERRED_NAME || null;
   const locale = process.env.DEFAULT_USER_LOCALE || 'en';
   const timezone = process.env.DEFAULT_USER_TIMEZONE || 'UTC';
+
+  const defaultPrefs: UserPreferences = {
+    onboarded: false,
+    interests: [],
+    agent: {
+      name: process.env.DEFAULT_AGENT_NAME || 'vibemon-agent',
+      personality: process.env.DEFAULT_AGENT_PERSONALITY ||
+        'Helpful, thoughtful, and direct. Curious about the world and eager to assist.',
+      style: process.env.DEFAULT_AGENT_STYLE ||
+        'Conversational and warm, but concise. Gets to the point without being curt.',
+    },
+  };
 
   db.prepare(`
     INSERT INTO users (id, display_name, preferred_name, locale, timezone, preferences, created_at, updated_at)

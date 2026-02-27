@@ -34,6 +34,7 @@ export interface OnboardingData {
 
 interface OnboardingModalProps {
   onComplete: (data: OnboardingData) => void;
+  initialData?: Partial<OnboardingData & { agent: Partial<OnboardingData['agent']> }>;
 }
 
 function randomName(): string {
@@ -63,21 +64,25 @@ function Field({ label, hint, children }: { label: string; hint?: string; childr
   );
 }
 
-export default function OnboardingModal({ onComplete }: OnboardingModalProps) {
+export default function OnboardingModal({ onComplete, initialData }: OnboardingModalProps) {
   const [step, setStep] = useState(1);
   const [saving, setSaving] = useState(false);
 
-  // Step 1 — About You
-  const [displayName, setDisplayName] = useState('');
-  const [preferredName, setPreferredName] = useState('');
-  const [timezone, setTimezone] = useState(() => Intl.DateTimeFormat().resolvedOptions().timeZone);
-  const [interests, setInterests] = useState<string[]>([]);
+  // Step 1 — About You (pre-fill from existing user data if available)
+  const [displayName, setDisplayName] = useState(initialData?.displayName || '');
+  const [preferredName, setPreferredName] = useState(initialData?.preferredName || '');
+  const [timezone, setTimezone] = useState(
+    initialData?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone
+  );
+  const [interests, setInterests] = useState<string[]>(initialData?.interests || []);
   const [interestInput, setInterestInput] = useState('');
 
-  // Step 2 — Your Agent
-  const [agentName, setAgentName] = useState(randomName);
-  const [agentPersonality, setAgentPersonality] = useState(DEFAULT_PERSONALITY);
-  const [agentStyle, setAgentStyle] = useState(DEFAULT_STYLE);
+  // Step 2 — Your Agent (pre-fill from existing agent config if available)
+  const [agentName, setAgentName] = useState(initialData?.agent?.name || randomName());
+  const [agentPersonality, setAgentPersonality] = useState(
+    initialData?.agent?.personality || DEFAULT_PERSONALITY
+  );
+  const [agentStyle, setAgentStyle] = useState(initialData?.agent?.style || DEFAULT_STYLE);
 
   const addInterest = (tag: string) => {
     const t = tag.trim().toLowerCase();

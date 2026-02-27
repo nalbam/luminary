@@ -1,10 +1,10 @@
 # Memory System
 
-vibemon-agent's memory system allows the agent to remember and reuse information. It consists of four kinds of notes (`log`, `summary`, `rule`, `soul`), TTL-based expiration, and vector embedding search.
+Luminary's memory system allows the agent to remember and reuse information. It consists of six kinds of notes (`log`, `summary`, `rule`, `soul`, `agent`, `user`), TTL-based expiration, and vector embedding search.
 
 ---
 
-## Note Kinds (4 Kinds)
+## Note Kinds (6 Kinds)
 
 ```mermaid
 graph LR
@@ -12,7 +12,9 @@ graph LR
         LOG[log\nRaw event record]
         SUMMARY[summary\nTask result summary]
         RULE[rule\nReusable knowledge]
-        SOUL[soul\nAgent identity]
+        SOUL[soul\n7-step protocol + principles]
+        AGENT[agent\nAgent persona]
+        USER[user\nUser profile]
     end
 
     subgraph stability["stability"]
@@ -27,6 +29,8 @@ graph LR
     RULE --> S
     RULE --> P
     SOUL --> P
+    AGENT --> P
+    USER --> P
 ```
 
 | Kind | Purpose | Typical stability | ttlDays example |
@@ -34,7 +38,9 @@ graph LR
 | `log` | Raw record of user requests and system events | `volatile` | 30 days |
 | `summary` | Summary of job/session results (goal, actions taken, next steps) | `volatile` | 7 days |
 | `rule` | Reusable knowledge. High confidence with evidence | `stable` / `permanent` | none |
-| `soul` | Agent identity and behavioral principles. Permanent | `permanent` | none |
+| `soul` | 7-step reasoning protocol + behavioral principles. System constant | `permanent` | none |
+| `agent` | Agent persona: name, personality, speaking style. User-configurable | `permanent` | none |
+| `user` | User profile: name, timezone, interests. Synced from users table | `permanent` | none |
 
 ### Kind Selection Guide
 
@@ -48,8 +54,14 @@ Job completed / Session ended
 Repeated pattern discovered / Rule to follow going forward
   → rule (confidence 0.8+, evidence[] required)
 
-Agent identity / Core behavioral principles
-  → soul (permanent, supersededBy chain for updates)
+Agent reasoning protocol / Core behavioral principles
+  → soul (permanent; only ONE active soul per user via supersededBy chain)
+
+Agent persona (name, personality, style)
+  → agent (permanent; updated via update_soul tool or settings save)
+
+User profile (name, timezone, interests)
+  → user (permanent; synced from users table on each request)
 ```
 
 ---
@@ -98,25 +110,35 @@ if (input.ttlDays) {
 
 ---
 
-## Context Pack
+## Agent Context
 
 The mechanism for injecting memory into the LLM prompt during chat response generation.
 
-**File:** `src/lib/memory/context-pack.ts`
+**File:** `src/lib/agent/context.ts`
 
 ### Build Process
 
+`buildAgentContext(userId, message?)` builds the system prompt with six priority layers:
+
 ```typescript
-function buildContextPack(userId: string, _query?: string): ContextPack {
-  const notes = getNotes({ userId, limit: 20 })
-    .filter(n => n.sensitivity !== 'sensitive' && !n.supersededBy);
-
-  const formattedText = notes.length > 0
-    ? `## Memory Context\n\n${notes.map(n => `[${n.kind}] ${n.content}`).join('\n\n')}`
-    : '';
-
-  return { notes: [...], formattedText };
+async function buildAgentContext(userId: string, message?: string): Promise<string> {
+  // 1. Agent note (kind='agent'): who the agent is — name, personality, style
+  // 2. Soul note  (kind='soul'):  how the agent thinks — 7-step protocol + principles
+  // 3. OS/platform environment:  always injected so agent uses correct shell commands
+  // 4. User note  (kind='user'):  who the user is — name, timezone, interests
+  // 5. Rule notes: semantically relevant to message (or most recent)
+  // 6. Summary notes: semantically relevant to message (or most recent)
 }
+```
+
+### Semantic Retrieval
+
+When `OPENAI_API_KEY` is set and sqlite-vec is available, rules and summaries are retrieved by **vector similarity** to the current `message` (not just recency):
+
+```typescript
+const queryVec = await getEmbedding(message);
+const ids = await searchSimilar(queryVec, 15);  // top-15 relevant note IDs
+// → fill remainder with recent notes if not enough semantic matches
 ```
 
 ### Filtering Rules
@@ -125,47 +147,11 @@ function buildContextPack(userId: string, _query?: string): ContextPack {
 |-----------|-------------|
 | `expires_at > NOW` | Automatically applied inside `getNotes()` |
 | `superseded_by IS NULL` | Automatically applied inside `getNotes()` |
-| `sensitivity != 'sensitive'` | Additional filter in Context Pack |
-| `limit: 20` | Most recent 20 only (created_at DESC) |
-| `_query` | Currently unused (planned for vector search integration) |
+| `sensitivity != 'sensitive'` | Excluded from context (rules + summaries) |
+| Semantic search | Relevance-prioritized when embeddings available; recency fallback |
+| `limit: 10 rules, 5 summaries` | Maximum counts per kind |
 
-### LLM Injection Location
-
-```typescript
-// lib/loops/interactive.ts
-const systemPrompt = `You are vibemon-agent...
-
-${contextPack.formattedText}  // ← injected here
-
-Be helpful, concise...`;
-```
-
-**Note:** The `_query` parameter is not currently used for vector search. Planned for future integration with semantic search.
-
----
-
-## Agent Context (Soul + Rules)
-
-The `buildAgentContext()` function in `src/lib/agent/context.ts` builds the system prompt with priority ordering:
-
-```typescript
-function buildAgentContext(userId: string): string {
-  // 1. Soul first: agent identity / behavioral principles
-  const soulNotes = getNotes({ userId, kind: 'soul', limit: 5 })
-    .filter(n => !n.supersededBy);
-
-  // 2. Rules: learned user rules
-  const ruleNotes = getNotes({ userId, kind: 'rule', limit: 10 })
-    .filter(n => n.sensitivity !== 'sensitive' && !n.supersededBy);
-
-  // 3. Recent context: recent task summaries
-  const summaryNotes = getNotes({ userId, kind: 'summary', limit: 5 })
-    .filter(n => n.sensitivity !== 'sensitive' && !n.supersededBy);
-  // ...
-}
-```
-
-**Priority order:** soul → rules → recent summaries
+**Priority order:** agent → soul → OS environment → user → rules → summaries
 
 ---
 

@@ -1,6 +1,6 @@
 # Guide: Add API Route
 
-vibemon-agent uses Next.js 14+ App Router. All API routes are located under `src/app/api/` and follow the Route Handlers pattern.
+Luminary uses Next.js 14+ App Router. All API routes are located under `src/app/api/` and follow the Route Handlers pattern.
 
 ---
 

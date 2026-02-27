@@ -2,7 +2,7 @@
 
 ## System Architecture
 
-vibemon-agent is a local-first agent runtime built on Next.js 14+ App Router. Four independent runtime loops operate with their own triggers, managing state through a shared SQLite DB and JSONL event store.
+Luminary is a local-first agent runtime built on Next.js 14+ App Router. Four independent runtime loops operate with their own triggers, managing state through a shared SQLite DB and JSONL event store.
 
 ```mermaid
 graph TB

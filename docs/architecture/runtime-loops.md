@@ -1,6 +1,6 @@
 # Runtime Loops
 
-vibemon-agent consists of four independent runtime loops. Each loop has a different trigger mechanism and communicates indirectly through the shared SQLite DB.
+Luminary consists of four independent runtime loops. Each loop has a different trigger mechanism and communicates indirectly through the shared SQLite DB.
 
 ---
 

@@ -1,4 +1,4 @@
-# vibemon-agent — Developer Documentation
+# Luminary — Developer Documentation
 
 > **For AI contributors.** Read [Critical Invariants](#critical-invariants) before modifying any code.
 
@@ -38,6 +38,7 @@
 - **MUST** set `ttlDays` on notes with `stability: 'volatile'`.
 - **NEVER** directly modify a note that has `superseded_by` set. Write a new note and link via `superseded_by`.
 - **MUST** `getNotes()` queries with `expires_at > NOW AND superseded_by IS NULL` conditions. Expired and superseded notes are automatically excluded.
+- Note kinds: `'log' | 'summary' | 'rule' | 'soul' | 'agent' | 'user'`. The `soul`, `agent`, and `user` kinds are system-managed identity notes (one per user). Do not write them directly — use `ensureIdentityExists()` or `applyAgentNote()`.
 
 ### API Routes
 

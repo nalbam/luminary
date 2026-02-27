@@ -64,19 +64,23 @@ export function ensureUserExists(userId = 'user_default'): User {
   const now = new Date().toISOString();
   const defaultPrefs: UserPreferences = { onboarded: false, interests: [] };
 
+  const displayName = process.env.DEFAULT_USER_NAME || 'User';
+  const locale = process.env.DEFAULT_USER_LOCALE || 'en';
+  const timezone = process.env.DEFAULT_USER_TIMEZONE || 'UTC';
+
   db.prepare(`
     INSERT INTO users (id, display_name, preferred_name, locale, timezone, preferences, created_at, updated_at)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(userId, 'User', null, 'en', 'UTC', JSON.stringify(defaultPrefs), now, now);
+  `).run(userId, displayName, null, locale, timezone, JSON.stringify(defaultPrefs), now, now);
 
   console.log('User initialized:', userId);
 
   return {
     id: userId,
-    displayName: 'User',
+    displayName,
     preferredName: null,
-    locale: 'en',
-    timezone: 'UTC',
+    locale,
+    timezone,
     preferences: defaultPrefs,
     createdAt: now,
     updatedAt: now,

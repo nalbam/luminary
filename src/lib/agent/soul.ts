@@ -10,10 +10,15 @@ export interface AgentConfig {
   style: string;
 }
 
+export const DEFAULT_AGENT_NAME =
+  process.env.DEFAULT_AGENT_NAME || 'vibemon-agent';
+
 export const DEFAULT_AGENT_PERSONALITY =
+  process.env.DEFAULT_AGENT_PERSONALITY ||
   'Helpful, thoughtful, and direct. Curious about the world and eager to assist.';
 
 export const DEFAULT_AGENT_STYLE =
+  process.env.DEFAULT_AGENT_STYLE ||
   'Conversational and warm, but concise. Gets to the point without being curt.';
 
 // ─── Agent note (kind='agent') ────────────────────────────────────────────────
@@ -235,7 +240,7 @@ export function ensureIdentityExists(userId = 'user_default'): void {
   const agentContent = agentConfig?.name
     ? buildAgentContent(agentConfig, user?.preferredName)
     : buildAgentContent(
-        { name: 'vibemon-agent', personality: DEFAULT_AGENT_PERSONALITY, style: DEFAULT_AGENT_STYLE },
+        { name: DEFAULT_AGENT_NAME, personality: DEFAULT_AGENT_PERSONALITY, style: DEFAULT_AGENT_STYLE },
         user?.preferredName,
       );
   upsertNote(userId, 'agent', agentContent);

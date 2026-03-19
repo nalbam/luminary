@@ -11,7 +11,7 @@ frontend:
         - npm --version
 
         # pnpm 설치
-        - npm install -g pnpm@10.14.0
+        - npm install -g pnpm@10.27.0
         - pnpm --version
 
         # 의존성 설치
